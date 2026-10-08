@@ -1,0 +1,6 @@
+{
+  "name": "Albion Craft Calc - Viabilidade e Faturamento",
+  "description": "Calculadora de viabilidade de produção e faturamento para Albion Online com taxa de retorno, conta premium e API Spring Boot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
