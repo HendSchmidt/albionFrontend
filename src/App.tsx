@@ -1,38 +1,191 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { CraftCalculator } from './components/CraftCalculator';
 import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
 import { JavaCodeViewer } from './components/JavaCodeViewer';
-import { CraftRequestDto } from './types/albion';
+import { CraftRequestDto, CraftResponseDto, DetalhesCalculo } from './types/albion';
 import { ALBION_ITEM_PRESETS } from './data/albionPresets';
-import { calcularViabilidade } from './services/albionService';
+import {
+  chamarSpringBoot,
+  calcularViabilidadeLocal,
+  DEFAULT_SPRING_BOOT_URL,
+  ResultadoCalculo,
+} from './services/albionService';
+import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'calculator' | 'api' | 'java'>('calculator');
+
+  // Backend Spring Boot URL
+  const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
+  const [showUrlSettings, setShowUrlSettings] = useState<boolean>(false);
 
   // Initial state using first Albion preset
   const [request, setRequest] = useState<CraftRequestDto>(() => ({
     ...ALBION_ITEM_PRESETS[0].dto,
   }));
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Results state
+  const initialLocal = calcularViabilidadeLocal(request);
+  const [response, setResponse] = useState<CraftResponseDto>(initialLocal.response);
+  const [detalhes, setDetalhes] = useState<DetalhesCalculo>(initialLocal.detalhes);
 
-  // Computed results in real time
-  const { response, detalhes } = useMemo(() => {
-    return calcularViabilidade(request);
-  }, [request]);
+  // Connection & execution status
+  const [backendStatus, setBackendStatus] = useState<'CONNECTED' | 'OFFLINE' | 'LOADING'>('LOADING');
+  const [statusMessage, setStatusMessage] = useState<string>('Conectando ao backend Spring Boot...');
+  const [lastCalculationOrigin, setLastCalculationOrigin] = useState<'SPRING_BOOT' | 'SIMULADOR_LOCAL'>('SIMULADOR_LOCAL');
+  const [lastLatency, setLastLatency] = useState<number | null>(null);
+
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Função central para executar o cálculo chamando o Spring Boot
+  const executarCalculo = useCallback(
+    async (currentReq: CraftRequestDto, urlAlvo: string = backendUrl) => {
+      setBackendStatus('LOADING');
+
+      try {
+        // Tenta chamar o endpoint real no Spring Boot
+        const resultado: ResultadoCalculo = await chamarSpringBoot(currentReq, urlAlvo);
+
+        setResponse(resultado.response);
+        setDetalhes(resultado.detalhes);
+        setBackendStatus('CONNECTED');
+        setLastCalculationOrigin('SPRING_BOOT');
+        setLastLatency(resultado.duracaoMs || null);
+        setStatusMessage(
+          `Conectado ao Spring Boot em "${urlAlvo}" (${resultado.duracaoMs}ms) - Regras Java ativas!`
+        );
+      } catch (err: any) {
+        // Se o Spring Boot estiver offline, usa o simulador local e avisa o usuário
+        const fallback = calcularViabilidadeLocal(currentReq);
+        setResponse(fallback.response);
+        setDetalhes(fallback.detalhes);
+        setBackendStatus('OFFLINE');
+        setLastCalculationOrigin('SIMULADOR_LOCAL');
+        setLastLatency(null);
+        setStatusMessage(
+          `Spring Boot offline em "${urlAlvo}". Inicie o ApiApplication no IntelliJ/Eclipse (porta 8080) para usar as regras do seu Java.`
+        );
+      }
+    },
+    [backendUrl]
+  );
+
+  // Dispara o cálculo automaticamente com debounce ao alterar os dados
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      executarCalculo(request, backendUrl);
+    }, 350);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [request, backendUrl, executarCalculo]);
 
   const handleManualCalculate = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 200);
+    executarCalculo(request, backendUrl);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Backend Spring Boot Connection Status Bar */}
+      <div className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-2.5 h-2.5 rounded-full ${
+                backendStatus === 'CONNECTED'
+                  ? 'bg-emerald-400 animate-pulse'
+                  : backendStatus === 'LOADING'
+                  ? 'bg-amber-400 animate-spin'
+                  : 'bg-rose-400'
+              }`}
+            />
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-200">
+                {backendStatus === 'CONNECTED' ? (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <Wifi className="w-3.5 h-3.5" />
+                    Spring Boot Conectado:
+                  </span>
+                ) : backendStatus === 'LOADING' ? (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Consultando API Spring Boot...
+                  </span>
+                ) : (
+                  <span className="text-rose-400 flex items-center gap-1">
+                    <WifiOff className="w-3.5 h-3.5" />
+                    Spring Boot Não Detectado:
+                  </span>
+                )}
+              </span>
+              <span className="text-slate-400 hidden sm:inline">{statusMessage}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {backendStatus === 'CONNECTED' && lastLatency !== null && (
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-[10px] border border-emerald-500/20">
+                {lastLatency}ms (Java REST API)
+              </span>
+            )}
+
+            {backendStatus === 'OFFLINE' && (
+              <button
+                onClick={() => executarCalculo(request, backendUrl)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-[11px] border border-slate-700 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3 text-amber-400" />
+                Tentar Conectar
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowUrlSettings(!showUrlSettings)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-[11px] border border-slate-700 transition-colors"
+              title="Configurar URL do backend"
+            >
+              <Settings className="w-3 h-3 text-slate-400" />
+              URL da API
+            </button>
+          </div>
+        </div>
+
+        {/* URL Settings Drawer */}
+        {showUrlSettings && (
+          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
+              <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                <Server className="w-3.5 h-3.5 text-cyan-400" />
+                Endpoint do seu Spring Boot:
+              </span>
+              <input
+                type="text"
+                value={backendUrl}
+                onChange={(e) => setBackendUrl(e.target.value)}
+                className="flex-1 min-w-[280px] bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500"
+                placeholder="http://localhost:8080/calculaViabilidadePorRecurso"
+              />
+              <button
+                onClick={() => executarCalculo(request, backendUrl)}
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition-colors"
+              >
+                Testar & Salvar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'calculator' && (
@@ -41,8 +194,25 @@ export default function App() {
               request={request}
               setRequest={setRequest}
               onCalculate={handleManualCalculate}
-              isLoading={isLoading}
+              isLoading={backendStatus === 'LOADING'}
             />
+
+            {/* Indicação visual da origem do cálculo atual */}
+            <div className="flex items-center justify-between text-xs px-2 text-slate-400">
+              <div className="flex items-center gap-2">
+                {lastCalculationOrigin === 'SPRING_BOOT' ? (
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Resposta fornecida diretamente pelo seu backend Spring Boot Java!
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-amber-400/90 font-medium bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Exibindo em modo de simulação local (inicie o Spring Boot na porta 8080 para conectar).
+                  </span>
+                )}
+              </div>
+            </div>
 
             <ResultsPanel
               response={response}
@@ -53,13 +223,9 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'api' && (
-          <ApiTester currentRequest={request} />
-        )}
+        {activeTab === 'api' && <ApiTester currentRequest={request} />}
 
-        {activeTab === 'java' && (
-          <JavaCodeViewer />
-        )}
+        {activeTab === 'java' && <JavaCodeViewer />}
       </main>
 
       <footer className="border-t border-slate-900 bg-slate-950/80 py-6 mt-12 text-center text-xs text-slate-500">

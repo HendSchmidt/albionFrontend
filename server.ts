@@ -86,14 +86,41 @@ async function startServer() {
   app.use(express.json());
 
   // Rota solicitada pelo usuário no Controller Spring Boot
-  app.post('/calculaViabilidadePorRecurso', (req, res) => {
+  app.post('/calculaViabilidadePorRecurso', async (req, res) => {
     try {
       const body: CraftRequestDto = req.body;
       if (!body || !body.recurso) {
         res.status(400).json({ error: 'Payload inválido. Envie um CraftRequestDto com lista de recursos.' });
         return;
       }
+
+      const springBootUrl = process.env.SPRING_BOOT_URL || 'http://localhost:8080/calculaViabilidadePorRecurso';
+
+      // 1. Tenta encaminhar a requisição para o Spring Boot real em localhost:8080
+      try {
+        const upstream = await fetch(springBootUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(2000),
+        });
+
+        if (upstream.ok) {
+          const springBootData = await upstream.json();
+          res.setHeader('X-Backend-Origin', 'Spring-Boot-Java');
+          res.json(springBootData);
+          return;
+        }
+      } catch (_connErr) {
+        // Se o Spring Boot não estiver rodando neste instante, utiliza o cálculo local de fallback
+      }
+
+      // 2. Fallback caso o Spring Boot ainda não tenha sido iniciado
       const resultado = calculaViabilidadeDeProducao(body);
+      res.setHeader('X-Backend-Origin', 'Local-Fallback');
       res.json(resultado);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao processar cálculo';
