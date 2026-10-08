@@ -1,6 +1,7 @@
 import React from 'react';
 import { CraftResponseDto, DetalhesCalculo } from '../types/albion';
 import { TrendingUp, TrendingDown, DollarSign, Package, Percent, Crown, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 
 interface ResultsPanelProps {
   response: CraftResponseDto;
@@ -25,10 +26,16 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
         {/* Custo Total de Produção */}
         <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
-            <span className="flex items-center gap-1.5">
-              <Package className="w-4 h-4 text-cyan-400" />
-              Custo Total da Produção
-            </span>
+            <Tooltip
+              title="Custo Total da Produção"
+              content="Soma do valor de todos os insumos consumidos efetivamente após o retorno de materiais devolvidos pelo jogo."
+              formula="custoTotalDaProdcao = ∑ custoPorRecurso"
+            >
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Package className="w-4 h-4 text-cyan-400" />
+                Custo Total da Produção
+              </span>
+            </Tooltip>
             <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
               {quantidadeProducao}x itens
             </span>
@@ -52,10 +59,16 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
         {/* Receita Líquida */}
         <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
-            <span className="flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-amber-400" />
-              Receita Líquida (Venda)
-            </span>
+            <Tooltip
+              title="Receita Líquida de Venda"
+              content="Valor financeiro real arrecadado após a cobrança das taxas de mercado de Albion (6% se tiver Conta Premium, ou 12% se não tiver)."
+              formula="Receita Bruta × (1 - Taxa Mercado)"
+            >
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <DollarSign className="w-4 h-4 text-amber-400" />
+                Receita Líquida (Venda)
+              </span>
+            </Tooltip>
             <span
               className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                 contaPremium
@@ -95,14 +108,20 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           }`}
         >
           <div className="flex items-center justify-between text-xs font-semibold mb-2">
-            <span className="flex items-center gap-1.5 text-slate-300">
-              {isLucro ? (
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-rose-400" />
-              )}
-              Lucro Líquido Final
-            </span>
+            <Tooltip
+              title="Lucro Líquido Final"
+              content="O dinheiro limpo que sobra na sua mão após pagar todo o custo de produção e todas as taxas de venda do mercado."
+              formula="lucro = Receita Líquida - Custo Total"
+            >
+              <span className="flex items-center gap-1.5 text-slate-300">
+                {isLucro ? (
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-rose-400" />
+                )}
+                Lucro Líquido Final
+              </span>
+            </Tooltip>
             <span
               className={`text-[10px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wider ${
                 isLucro
