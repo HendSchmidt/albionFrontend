@@ -2,6 +2,7 @@ import { CraftRequestDto } from '../types/albion';
 
 export interface ItemPreset {
   id: string;
+  albionItemId: string; // ID oficial usado no Albion Online Data Project
   nomeItem: string;
   tier: string;
   categoria: string;
@@ -20,15 +21,23 @@ export interface CityBonusPreset {
 export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   {
     id: 'espada-larga-t4',
+    albionItemId: 'T4_MAIN_SWORD',
     nomeItem: 'Espada Larga T4 (Broadsword)',
     tier: 'T4',
     categoria: 'Armas de Guerreiro',
     icone: '⚔️',
     dto: {
       quantidadeParaProducao: 5,
-      taxaDeRetorno: 25, // Bônus em cidade especializada
+      taxaDeRetorno: 25,
       precoDeVenda: 6200,
       contaPremium: true,
+      taxaEstacaoPorCemNutricao: 600,
+      itemValue: 480,
+      quantidadeDiarios: 1,
+      valorVendaDiario: 3200,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 1200,
       recurso: [
         { nome: 'Barra de Aço T4', quantidade: 16, valor: 210 },
         { nome: 'Couro Trabalhado T4', quantidade: 8, valor: 180 },
@@ -37,6 +46,7 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   },
   {
     id: 'peitoral-mercenario-t5',
+    albionItemId: 'T5_ARMOR_LEATHER_SET1',
     nomeItem: 'Casaco de Mercenário T5',
     tier: 'T5',
     categoria: 'Armaduras de Caçador',
@@ -46,6 +56,13 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaDeRetorno: 25,
       precoDeVenda: 18500,
       contaPremium: true,
+      taxaEstacaoPorCemNutricao: 700,
+      itemValue: 960,
+      quantidadeDiarios: 3,
+      valorVendaDiario: 6500,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 2500,
       recurso: [
         { nome: 'Couro Fino T5', quantidade: 16, valor: 850 },
       ],
@@ -53,6 +70,7 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   },
   {
     id: 'arco-guerra-t6',
+    albionItemId: 'T6_2H_WARBOW',
     nomeItem: 'Arco de Guerra T6 (Warbow)',
     tier: 'T6',
     categoria: 'Armas de Caçador',
@@ -62,6 +80,13 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaDeRetorno: 48, // Com foco de produção
       precoDeVenda: 75000,
       contaPremium: true,
+      taxaEstacaoPorCemNutricao: 800,
+      itemValue: 1920,
+      quantidadeDiarios: 2,
+      valorVendaDiario: 14000,
+      ordemDeVenda: true,
+      usarFoco: true,
+      custoFocoTotal: 1800,
       recurso: [
         { nome: 'Tábuas Encantadas T6', quantidade: 32, valor: 1650 },
       ],
@@ -69,6 +94,7 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   },
   {
     id: 'cajado-fogo-t5',
+    albionItemId: 'T5_2H_FIRESTAFF',
     nomeItem: 'Cajado de Fogo T5 (Fire Staff)',
     tier: 'T5',
     categoria: 'Armas de Mago',
@@ -78,6 +104,13 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaDeRetorno: 15,
       precoDeVenda: 22000,
       contaPremium: false,
+      taxaEstacaoPorCemNutricao: 650,
+      itemValue: 960,
+      quantidadeDiarios: 2,
+      valorVendaDiario: 6200,
+      ordemDeVenda: false, // Venda instantânea
+      usarFoco: false,
+      custoFocoTotal: 1600,
       recurso: [
         { nome: 'Tábuas T5', quantidade: 16, valor: 780 },
         { nome: 'Barra de Titânio T5', quantidade: 8, valor: 820 },
@@ -86,6 +119,7 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   },
   {
     id: 'bolsa-t4',
+    albionItemId: 'T4_BAG',
     nomeItem: 'Bolsa de Aventureiro T4',
     tier: 'T4',
     categoria: 'Acessórios',
@@ -95,6 +129,13 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaDeRetorno: 15,
       precoDeVenda: 3900,
       contaPremium: true,
+      taxaEstacaoPorCemNutricao: 500,
+      itemValue: 240,
+      quantidadeDiarios: 4,
+      valorVendaDiario: 2800,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 800,
       recurso: [
         { nome: 'Couro T4', quantidade: 4, valor: 190 },
         { nome: 'Tecido T4', quantidade: 4, valor: 185 },
@@ -103,6 +144,7 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
   },
   {
     id: 'machado-batalha-t7',
+    albionItemId: 'T7_MAIN_AXE',
     nomeItem: 'Machado de Batalha T7',
     tier: 'T7',
     categoria: 'Armas de Guerreiro',
@@ -112,6 +154,13 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaDeRetorno: 48,
       precoDeVenda: 190000,
       contaPremium: true,
+      taxaEstacaoPorCemNutricao: 1000,
+      itemValue: 3840,
+      quantidadeDiarios: 1,
+      valorVendaDiario: 28000,
+      ordemDeVenda: true,
+      usarFoco: true,
+      custoFocoTotal: 2200,
       recurso: [
         { nome: 'Barra de Meteoro T7', quantidade: 12, valor: 5800 },
         { nome: 'Tábuas T7', quantidade: 12, valor: 5400 },

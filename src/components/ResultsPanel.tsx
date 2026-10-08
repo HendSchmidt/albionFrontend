@@ -1,6 +1,19 @@
 import React from 'react';
 import { CraftResponseDto, DetalhesCalculo } from '../types/albion';
-import { TrendingUp, TrendingDown, DollarSign, Package, Percent, Crown, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Package,
+  Percent,
+  Crown,
+  Store,
+  BookOpen,
+  Zap,
+  Tag,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
 interface ResultsPanelProps {
@@ -19,6 +32,12 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
   const isLucro = response.lucro > 0;
   const isPrejuizo = response.lucro < 0;
 
+  const custoEstacao = response.custoTaxaEstacao ?? detalhes.custoTaxaEstacao ?? 0;
+  const receitaDiarios = response.receitaDiarios ?? detalhes.receitaDiarios ?? 0;
+  const taxaMontagem = response.taxaMontagemOrdem ?? detalhes.taxaMontagemOrdem ?? 0;
+  const taxaVenda = response.taxaVendaMercado ?? detalhes.valorTaxaMercado ?? 0;
+  const spf = response.prataPorFoco ?? detalhes.prataPorFoco ?? 0;
+
   return (
     <div className="space-y-6">
       {/* Top 3 KPI Cards: Custo Total, Receita Líquida, Lucro */}
@@ -28,8 +47,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
             <Tooltip
               title="Custo Total da Produção"
-              content="Soma do valor de todos os insumos consumidos efetivamente após o retorno de materiais devolvidos pelo jogo."
-              formula="custoTotalDaProdcao = ∑ custoPorRecurso"
+              content="Soma do valor de todos os insumos consumidos efetivamente mais a taxa cobrada pelo dono da barraca na cidade real."
+              formula="custoTotal = Custo Insumos + Taxa da Estação"
             >
               <span className="flex items-center gap-1.5 text-slate-300">
                 <Package className="w-4 h-4 text-cyan-400" />
@@ -47,11 +66,18 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
             })}{' '}
             <span className="text-xs font-bold text-amber-400">🪙 Prata</span>
           </div>
-          <div className="mt-2 text-xs text-slate-400">
-            Custo unitário: {(response.custoTotalDaProdcao / quantidadeProducao).toLocaleString('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })} por item
+          <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
+            <span>
+              Unitário: {(response.custoTotalDaProdcao / quantidadeProducao).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+            {custoEstacao > 0 && (
+              <span className="text-amber-400 font-medium">
+                (Loja: +{custoEstacao.toLocaleString('pt-BR')})
+              </span>
+            )}
           </div>
           <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-cyan-500/5 rounded-full blur-xl pointer-events-none" />
         </div>
@@ -60,13 +86,13 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
         <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
             <Tooltip
-              title="Receita Líquida de Venda"
-              content="Valor financeiro real arrecadado após a cobrança das taxas de mercado de Albion (6% se tiver Conta Premium, ou 12% se não tiver)."
-              formula="Receita Bruta × (1 - Taxa Mercado)"
+              title="Receita Líquida Total"
+              content="Valor financeiro total que entra na sua bolsa após abater todas as taxas de mercado (venda + montagem) e somar a venda de diários de artesão."
+              formula="(Receita Bruta - Taxas Mercado) + Diários"
             >
               <span className="flex items-center gap-1.5 text-slate-300">
                 <DollarSign className="w-4 h-4 text-amber-400" />
-                Receita Líquida (Venda)
+                Receita Líquida Total
               </span>
             </Tooltip>
             <span
@@ -76,7 +102,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                   : 'bg-slate-800 text-slate-400'
               }`}
             >
-              {contaPremium ? '6% Taxa (Premium)' : '12% Taxa (Sem Premium)'}
+              {contaPremium ? 'Taxa 6% (Premium)' : 'Taxa 12% (Sem Premium)'}
             </span>
           </div>
           <div className="text-2xl font-black text-slate-100 tracking-tight">
@@ -88,9 +114,9 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           </div>
           <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
             <span>Bruto: {detalhes.receitaBruta.toLocaleString('pt-BR')}</span>
-            {detalhes.valorTaxaMercado > 0 && (
-              <span className="text-rose-400">
-                -Taxa: {detalhes.valorTaxaMercado.toLocaleString('pt-BR')}
+            {receitaDiarios > 0 && (
+              <span className="text-cyan-400 font-bold">
+                +Diários: {receitaDiarios.toLocaleString('pt-BR')}
               </span>
             )}
           </div>
@@ -110,8 +136,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           <div className="flex items-center justify-between text-xs font-semibold mb-2">
             <Tooltip
               title="Lucro Líquido Final"
-              content="O dinheiro limpo que sobra na sua mão após pagar todo o custo de produção e todas as taxas de venda do mercado."
-              formula="lucro = Receita Líquida - Custo Total"
+              content="O lucro real que sobra na sua carteira após pagar insumos, taxa da barraca, taxas do mercado e somar os diários."
+              formula="lucro = Receita Líquida Total - Custo Total"
             >
               <span className="flex items-center gap-1.5 text-slate-300">
                 {isLucro ? (
@@ -151,6 +177,61 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
             <span>Margem: {detalhes.margemLucroPercentual}%</span>
             <span>ROI: {detalhes.roiPercentual}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced Economic Breakdown Banner: Taxa Loja, Diários, Taxas de Mercado & SPF */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 shadow-lg">
+        {/* Taxa da Estação */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <Store className="w-3.5 h-3.5 text-amber-400" />
+            <span>Taxa da Barraca (Loja)</span>
+          </div>
+          <div className="text-sm font-bold text-amber-300">
+            {custoEstacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Pratas
+          </div>
+          <div className="text-[10px] text-slate-400">Custo pago ao dono do lote</div>
+        </div>
+
+        {/* Diários de Artesão */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Receita c/ Diários</span>
+          </div>
+          <div className="text-sm font-bold text-cyan-300">
+            +{receitaDiarios.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Pratas
+          </div>
+          <div className="text-[10px] text-slate-400">Venda de diários preenchidos</div>
+        </div>
+
+        {/* Taxas Totais de Mercado */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <Tag className="w-3.5 h-3.5 text-rose-400" />
+            <span>Taxas de Mercado</span>
+          </div>
+          <div className="text-sm font-bold text-rose-300">
+            -{(taxaVenda + taxaMontagem).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Pratas
+          </div>
+          <div className="text-[10px] text-slate-400">
+            Venda: {taxaVenda.toLocaleString('pt-BR')} | Ordem: {taxaMontagem.toLocaleString('pt-BR')}
+          </div>
+        </div>
+
+        {/* Silver per Focus (SPF) */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <Zap className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Prata / Foco (SPF)</span>
+          </div>
+          <div className="text-sm font-bold text-emerald-300">
+            {spf > 0 ? `${spf.toFixed(1)} Pratas/Foco` : 'Foco inativo'}
+          </div>
+          <div className="text-[10px] text-slate-400">
+            {spf >= 80 ? '🔥 Excelente Retorno' : spf >= 40 ? '👍 Bom Retorno' : spf > 0 ? '⚠️ Retorno Baixo' : 'Sem foco'}
           </div>
         </div>
       </div>
@@ -213,7 +294,6 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                   </div>
                 </div>
 
-                {/* Progress bar indicating cost proportion */}
                 <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
                   <div
                     className="bg-gradient-to-r from-amber-500 to-amber-600 h-full rounded-full transition-all duration-500"
@@ -258,14 +338,15 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
             {contaPremium ? (
               <>
                 Sua Conta Premium está <strong className="text-emerald-400">ativa</strong>.
-                Você economizou{' '}
+                Você paga <strong className="text-emerald-300">6% de taxa</strong> no mercado em vez de 12%,
+                economizando{' '}
                 <strong className="text-amber-300">
                   {detalhes.economiaPremium.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                   })}{' '}
                   Pratas
                 </strong>{' '}
-                em taxas de mercado neste lote de produção!
+                neste lote!
               </>
             ) : (
               <>
@@ -275,17 +356,17 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                   {detalhes.valorTaxaMercado.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                   })}{' '}
-                  Pratas (6%)
+                  Pratas (12%)
                 </strong>{' '}
-                de taxa no mercado. Ative a conta premium para isenção/desconto dessa taxa.
+                de taxa no mercado. Ative a conta premium para reduzir a taxa para 6%.
               </>
             )}
           </p>
           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-            <span>Diferença no lucro por lote:</span>
+            <span>Economia com Conta Premium:</span>
             <span className="font-bold text-amber-400">
               +{detalhes.economiaPremium.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-              Pratas com Premium
+              Pratas por lote
             </span>
           </div>
         </div>

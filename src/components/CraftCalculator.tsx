@@ -1,8 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CraftRequestDto, RecursoRequestDto } from '../types/albion';
 import { ALBION_ITEM_PRESETS, CITY_BONUSES } from '../data/albionPresets';
-import { Plus, Trash2, Crown, Sparkles, MapPin, RefreshCw, ShoppingCart, Percent } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Crown,
+  Sparkles,
+  RefreshCw,
+  ShoppingCart,
+  Percent,
+  Store,
+  BookOpen,
+  Zap,
+  Globe,
+  Tag,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { Tooltip } from './Tooltip';
+import { buscarPrecosAoVivo, CIDADES_ALBION, CidadeAlbion } from '../services/albionDataProjectService';
 
 interface CraftCalculatorProps {
   request: CraftRequestDto;
@@ -17,6 +33,13 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
   onCalculate,
   isLoading,
 }) => {
+  const [selectedCity, setSelectedCity] = useState<CidadeAlbion>('Fort Sterling');
+  const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
+  const [priceMessage, setPriceMessage] = useState<string | null>(null);
+
+  // Painéis expansíveis avançados
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState<boolean>(true);
+
   const handleResourceChange = (
     index: number,
     field: keyof RecursoRequestDto,
@@ -57,11 +80,39 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     const found = ALBION_ITEM_PRESETS.find((p) => p.id === presetId);
     if (found) {
       setRequest({ ...found.dto });
+      setPriceMessage(null);
     }
   };
 
   const applyCityBonus = (taxa: number) => {
     setRequest((prev) => ({ ...prev, taxaDeRetorno: taxa }));
+  };
+
+  // Consulta preços ao vivo na API pública do Albion Online Data Project
+  const handleFetchLivePrice = async () => {
+    setIsFetchingPrice(true);
+    setPriceMessage(null);
+
+    try {
+      // Localiza o preset atual para pegar o ID oficial do Albion
+      const currentPreset = ALBION_ITEM_PRESETS.find(
+        (p) => p.nomeItem.toLowerCase() === request.recurso[0]?.nome?.toLowerCase() || p.dto.precoDeVenda === request.precoDeVenda
+      ) || ALBION_ITEM_PRESETS[0];
+
+      const prices = await buscarPrecosAoVivo([currentPreset.albionItemId], selectedCity);
+
+      if (prices && prices.length > 0 && prices[0].sell_price_min > 0) {
+        const livePrice = prices[0].sell_price_min;
+        setRequest((prev) => ({ ...prev, precoDeVenda: livePrice }));
+        setPriceMessage(`Preço ao vivo em ${selectedCity}: ${livePrice.toLocaleString('pt-BR')} Pratas!`);
+      } else {
+        setPriceMessage(`Nenhuma cotação recente em ${selectedCity}. Mantido o valor anterior.`);
+      }
+    } catch (err: any) {
+      setPriceMessage(`Erro ao consultar Albion Data: ${err.message}`);
+    } finally {
+      setIsFetchingPrice(false);
+    }
   };
 
   return (
@@ -112,7 +163,45 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
               Defina a quantidade de itens, taxa de retorno dos recursos e condições de venda.
             </p>
           </div>
+
+          {/* Botão de Preços ao Vivo do Albion Data Project */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-xs">
+              <span className="text-[11px] text-slate-400">Cidade:</span>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value as CidadeAlbion)}
+                className="bg-transparent text-cyan-400 font-bold focus:outline-none cursor-pointer text-xs"
+              >
+                {CIDADES_ALBION.map((c) => (
+                  <option key={c} value={c} className="bg-slate-900 text-slate-200">
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFetchLivePrice}
+              disabled={isFetchingPrice}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 text-xs font-bold transition-colors cursor-pointer"
+              title="Buscar preço atual no mercado de Albion via Albion Data Project"
+            >
+              <Globe className={`w-3.5 h-3.5 ${isFetchingPrice ? 'animate-spin' : ''}`} />
+              {isFetchingPrice ? 'Consultando...' : 'Preço ao Vivo (API)'}
+            </button>
+          </div>
         </div>
+
+        {priceMessage && (
+          <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-800/60 text-xs text-cyan-300 flex items-center justify-between">
+            <span>{priceMessage}</span>
+            <button onClick={() => setPriceMessage(null)} className="text-slate-500 hover:text-slate-300">
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* 3 Columns: Quantidade, Taxa de Retorno, Preço de Venda */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -246,56 +335,54 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
           </div>
         </div>
 
-        {/* Conta Premium Banner & Toggle */}
-        <div
-          onClick={() => setRequest((prev) => ({ ...prev, contaPremium: !prev.contaPremium }))}
-          className={`cursor-pointer rounded-xl p-4 border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-            request.contaPremium
-              ? 'bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-slate-900 border-amber-500/50 shadow-lg shadow-amber-950/30'
-              : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                request.contaPremium
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                  : 'bg-slate-800 text-slate-500'
-              }`}
-            >
-              <Crown className="w-5 h-5 font-bold" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <Tooltip
-                  title="Impacto da Conta Premium"
-                  content="Ter Conta Premium ativa concede 6% de desconto nas taxas do mercado (taxa reduzida de 12% para 6%)."
-                  formula="Taxa: Premium = 6% | Sem Premium = 12%"
-                >
-                  <span className="text-sm font-bold text-slate-100">
-                    Conta Premium Ativa
-                  </span>
-                </Tooltip>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                    request.contaPremium
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {request.contaPremium ? 'Ativada (Taxa 6% com Desconto)' : 'Inativa (Taxa 12% sem Desconto)'}
-                </span>
+        {/* 2 Opções de Mercado: Conta Premium & Tipo de Venda (Ordem vs Venda Instantânea) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Conta Premium Banner & Toggle */}
+          <div
+            onClick={() => setRequest((prev) => ({ ...prev, contaPremium: !prev.contaPremium }))}
+            className={`cursor-pointer rounded-xl p-4 border transition-all flex items-center justify-between gap-4 ${
+              request.contaPremium
+                ? 'bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-slate-900 border-amber-500/50 shadow-lg shadow-amber-950/30'
+                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  request.contaPremium
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                    : 'bg-slate-800 text-slate-500'
+                }`}
+              >
+                <Crown className="w-5 h-5 font-bold" />
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Regra: A taxa é de <strong className="text-amber-400">6% com Conta Premium</strong> (desconto de 6% em relação aos 12% padrão sem premium).
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Tooltip
+                    title="Impacto da Conta Premium"
+                    content="Ter Conta Premium ativa concede 6% de desconto nas taxas do mercado (taxa reduzida de 12% para 6%)."
+                    formula="Taxa: Premium = 6% | Sem Premium = 12%"
+                  >
+                    <span className="text-sm font-bold text-slate-100">
+                      Conta Premium Ativa
+                    </span>
+                  </Tooltip>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      request.contaPremium
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {request.contaPremium ? 'Taxa 6% (Premium)' : 'Taxa 12% (Normal)'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Desconto de 6% nas taxas do mercado de Albion.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 hidden sm:inline">
-              {request.contaPremium ? 'Taxa de 6% aplicada' : 'Taxa de 12% aplicada'}
-            </span>
             <div
               className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
                 request.contaPremium ? 'bg-amber-500 justify-end' : 'bg-slate-800 justify-start'
@@ -304,6 +391,234 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
               <div className="bg-slate-950 w-4 h-4 rounded-full shadow-md" />
             </div>
           </div>
+
+          {/* Tipo de Venda: Ordem de Venda (2.5% Setup) vs Venda Instantânea */}
+          <div
+            onClick={() => setRequest((prev) => ({ ...prev, ordemDeVenda: !(prev.ordemDeVenda ?? true) }))}
+            className={`cursor-pointer rounded-xl p-4 border transition-all flex items-center justify-between gap-4 ${
+              (request.ordemDeVenda ?? true)
+                ? 'bg-gradient-to-r from-cyan-950/40 via-cyan-900/20 to-slate-900 border-cyan-500/40 shadow-lg'
+                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  (request.ordemDeVenda ?? true)
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                    : 'bg-slate-800 text-slate-500'
+                }`}
+              >
+                <Tag className="w-5 h-5 font-bold" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Tooltip
+                    title="Ordem de Venda (Sell Order)"
+                    content="No Albion, colocar ordem de venda cobra 2.5% de taxa de montagem antecipada (não reembolsável). Se você vender direto para ordem de compra (Venda Instantânea), essa taxa de 2.5% não é cobrada!"
+                    formula="Ordem = +2.5% taxa | Venda Direta = 0% taxa de montagem"
+                  >
+                    <span className="text-sm font-bold text-slate-100">
+                      Vender via Ordem de Venda
+                    </span>
+                  </Tooltip>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      (request.ordemDeVenda ?? true)
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400'
+                    }`}
+                  >
+                    {(request.ordemDeVenda ?? true) ? '+2.5% Taxa Montagem' : 'Venda Direta (0% Taxa Montagem)'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {(request.ordemDeVenda ?? true)
+                    ? 'Paga 2.5% de taxa ao criar ordem de venda.'
+                    : 'Venda instantânea para ordens existentes (sem taxa de montagem).'}
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
+                (request.ordemDeVenda ?? true) ? 'bg-cyan-500 justify-end' : 'bg-slate-800 justify-start'
+              }`}
+            >
+              <div className="bg-slate-950 w-4 h-4 rounded-full shadow-md" />
+            </div>
+          </div>
+        </div>
+
+        {/* Recursos Avançados do Albion (Barraca, Diários, Foco de Produção) */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-4">
+          <div
+            onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+            className="flex items-center justify-between cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-slate-200">
+                Economia Real do Albion (Taxa da Loja, Diários de Artesão & Foco)
+              </h3>
+            </div>
+            <button className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              {showAdvancedSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {showAdvancedSettings && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
+              {/* 1. Taxa da Estação / Barraca na Cidade */}
+              <div className="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <Tooltip
+                    title="Taxa da Loja na Cidade (Nutrition Fee)"
+                    content="Taxa que o dono da barraca na cidade real cobra por 100 de nutrição gasta. A fórmula oficial é: Nutrição = Item Value × 0.1125 × Quantidade. Custo = (Nutrição / 100) × Taxa."
+                    formula="(Item Value × 0.1125 × Qtd / 100) × Taxa"
+                  >
+                    <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                      <Store className="w-3.5 h-3.5" />
+                      Taxa da Barraca (p/ 100 Nutrição)
+                    </label>
+                  </Tooltip>
+                  <span className="text-[10px] text-slate-400">Prata</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">Preço da Loja:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={request.taxaEstacaoPorCemNutricao ?? 0}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          taxaEstacaoPorCemNutricao: Math.max(0, parseFloat(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">Item Value:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={request.itemValue ?? 480}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          itemValue: Math.max(0, parseFloat(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-bold focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Diários de Artesão (Crafting Journals) */}
+              <div className="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <Tooltip
+                    title="Diários de Artesão (Journals)"
+                    content="Carregar diários vazios na mochila preenche-os com fama ao fabricar. Os diários cheios podem ser vendidos no mercado ou entregues aos trabalhadores na ilha para trazer recursos, aumentando muito o lucro líquido!"
+                    formula="Receita Diários = Qtd Diários × Preço Venda"
+                  >
+                    <label className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Diários de Artesão (Cheios)
+                    </label>
+                  </Tooltip>
+                  <span className="text-[10px] text-slate-400">Lucro Extra</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">Qtd Preenchida:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={request.quantidadeDiarios ?? 0}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          quantidadeDiarios: Math.max(0, parseInt(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-bold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">Valor do Diário:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="500"
+                      value={request.valorVendaDiario ?? 0}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          valorVendaDiario: Math.max(0, parseFloat(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Foco de Produção & Silver per Focus */}
+              <div className="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <Tooltip
+                    title="Foco de Produção & Silver per Focus (SPF)"
+                    content="Ativar o foco aumenta a taxa de retorno de recursos. A métrica Silver per Focus (SPF) indica quantas moedas de prata de lucro você obtém por cada 1 ponto de foco gasto."
+                    formula="SPF = Lucro / Pontos de Foco Gastos"
+                  >
+                    <label className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" />
+                      Foco de Produção (SPF)
+                    </label>
+                  </Tooltip>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={request.usarFoco ?? false}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          usarFoco: e.target.checked,
+                          taxaDeRetorno: e.target.checked && prev.taxaDeRetorno < 40 ? 48 : prev.taxaDeRetorno,
+                        }))
+                      }
+                      className="accent-emerald-500 rounded"
+                    />
+                    Ativar Foco
+                  </label>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block mb-1">Custo Total de Foco:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    disabled={!(request.usarFoco ?? false)}
+                    value={request.custoFocoTotal ?? 0}
+                    onChange={(e) =>
+                      setRequest((prev) => ({
+                        ...prev,
+                        custoFocoTotal: Math.max(0, parseInt(e.target.value) || 0),
+                      }))
+                    }
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-bold focus:outline-none disabled:opacity-40"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Recursos Table */}
@@ -410,7 +725,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                           onChange={(e) =>
                             handleResourceChange(index, 'quantidade', e.target.value)
                           }
-                          className="w-20 bg-slate-900 border border-slate-700/70 rounded-lg px-2 py-1.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-amber-500"
+                          className="w-20 bg-slate-900 border border-slate-700/70 rounded-lg px-2 py-1 text-xs text-slate-100 font-bold focus:outline-none focus:border-amber-500"
                         />
                       </td>
                       <td className="px-4 py-2.5 text-slate-300 font-semibold">

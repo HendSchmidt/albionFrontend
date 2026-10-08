@@ -20,7 +20,6 @@ export async function chamarSpringBoot(
   const inicio = performance.now();
 
   try {
-    // 1. Tenta chamada direta para o Spring Boot (ex: http://localhost:8080)
     let res: Response;
     try {
       res = await fetch(backendUrl, {
@@ -31,8 +30,7 @@ export async function chamarSpringBoot(
         },
         body: JSON.stringify(request),
       });
-    } catch (directErr) {
-      // Se falhar (ex: rodando no browser HTTPS ou restrição de rede), tenta pelo proxy do servidor local
+    } catch (_directErr) {
       res = await fetch('/api/proxy-craft', {
         method: 'POST',
         headers: {
@@ -54,7 +52,6 @@ export async function chamarSpringBoot(
     const craftResponse: CraftResponseDto = await res.json();
     const duracaoMs = Math.round(performance.now() - inicio);
 
-    // Constrói os detalhes analíticos complementares usando a resposta do Spring Boot
     const detalhes = gerarDetalhesAnaliticos(request, craftResponse);
 
     return {
@@ -101,8 +98,22 @@ export function gerarDetalhesAnaliticos(
   const receitaBruta = Math.round(precoVenda * quantidadeProducao * 100) / 100;
 
   const taxaMercadoPercentual = request.contaPremium ? 6.0 : 12.0;
-  const valorTaxaMercado = Math.round(receitaBruta * (taxaMercadoPercentual / 100.0) * 100) / 100;
-  const receitaLiquida = Math.round((receitaBruta - valorTaxaMercado) * 100) / 100;
+  const valorTaxaMercado = response.taxaVendaMercado ?? Math.round(receitaBruta * (taxaMercadoPercentual / 100.0) * 100) / 100;
+
+  const ehOrdemDeVenda = request.ordemDeVenda === undefined || request.ordemDeVenda;
+  const taxaMontagemOrdem = response.taxaMontagemOrdem ?? (ehOrdemDeVenda ? Math.round(receitaBruta * 0.025 * 100) / 100 : 0);
+
+  const receitaDiarios = response.receitaDiarios ?? (
+    request.quantidadeDiarios && request.valorVendaDiario
+      ? Math.round(request.quantidadeDiarios * request.valorVendaDiario * 100) / 100
+      : 0
+  );
+
+  const custoTaxaEstacao = response.custoTaxaEstacao ?? 0;
+
+  const receitaLiquida = response.receitaLiquidaTotal ?? (
+    Math.round((receitaBruta - valorTaxaMercado - taxaMontagemOrdem + receitaDiarios) * 100) / 100
+  );
 
   const economiaPremium = request.contaPremium
     ? Math.round(receitaBruta * 0.06 * 100) / 100
@@ -123,15 +134,19 @@ export function gerarDetalhesAnaliticos(
     receitaBruta,
     taxaMercadoPercentual,
     valorTaxaMercado,
+    taxaMontagemOrdem,
+    receitaDiarios,
+    custoTaxaEstacao,
     receitaLiquida,
     margemLucroPercentual,
     roiPercentual,
     economiaPremium,
+    prataPorFoco: response.prataPorFoco,
   };
 }
 
 /**
- * Cálculo local alternativo (usado apenas se o usuário optar ou para visualização prévia).
+ * Cálculo local com todas as regras avançadas do Albion Online.
  */
 export function calcularViabilidadeLocal(request: CraftRequestDto): {
   response: CraftResponseDto;
@@ -148,19 +163,59 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     return { nome: rec.nome, valor };
   });
 
-  const custoTotalDaProdcao = Math.round(
+  const custoInsumos = Math.round(
     custoPorRecurso.reduce((acc, curr) => acc + curr.valor, 0) * 100
   ) / 100;
 
+  // Taxa da estação de fabricação (Station / Nutrition Fee)
+  let custoTaxaEstacao = 0;
+  if (request.taxaEstacaoPorCemNutricao && request.taxaEstacaoPorCemNutricao > 0) {
+    const itemValue = request.itemValue && request.itemValue > 0
+      ? request.itemValue
+      : custoInsumos / quantidadeProducao;
+    const nutricao = itemValue * 0.1125 * quantidadeProducao;
+    custoTaxaEstacao = Math.round((nutricao / 100.0) * request.taxaEstacaoPorCemNutricao * 100) / 100;
+  }
+
+  const custoTotalDaProdcao = Math.round((custoInsumos + custoTaxaEstacao) * 100) / 100;
+
+  // Receita bruta dos itens
   const receitaBruta = Math.round((request.precoDeVenda || 0) * quantidadeProducao * 100) / 100;
-  const taxaMercado = request.contaPremium ? 0.06 : 0.12;
-  const receitaLiquida = Math.round(receitaBruta * (1.0 - taxaMercado) * 100) / 100;
-  const lucro = Math.round((receitaLiquida - custoTotalDaProdcao) * 100) / 100;
+
+  // Diários de artesão
+  let receitaDiarios = 0;
+  if (request.quantidadeDiarios && request.valorVendaDiario) {
+    receitaDiarios = Math.round(request.quantidadeDiarios * request.valorVendaDiario * 100) / 100;
+  }
+
+  // Taxas de mercado
+  const taxaMercadoAliquota = request.contaPremium ? 0.06 : 0.12;
+  const taxaVendaMercado = Math.round(receitaBruta * taxaMercadoAliquota * 100) / 100;
+
+  const ehOrdemDeVenda = request.ordemDeVenda === undefined || request.ordemDeVenda;
+  const taxaMontagemOrdem = ehOrdemDeVenda ? Math.round(receitaBruta * 0.025 * 100) / 100 : 0;
+
+  const totalTaxasMercado = Math.round((taxaVendaMercado + taxaMontagemOrdem) * 100) / 100;
+  const receitaLiquidaTotal = Math.round((receitaBruta - totalTaxasMercado + receitaDiarios) * 100) / 100;
+
+  const lucro = Math.round((receitaLiquidaTotal - custoTotalDaProdcao) * 100) / 100;
+
+  // Prata por ponto de foco (SPF)
+  let prataPorFoco = 0;
+  if (request.usarFoco && request.custoFocoTotal && request.custoFocoTotal > 0) {
+    prataPorFoco = Math.round((lucro / request.custoFocoTotal) * 100) / 100;
+  }
 
   const response: CraftResponseDto = {
     custoTotalDaProdcao,
     custoPorRecurso,
     lucro,
+    custoTaxaEstacao,
+    receitaDiarios,
+    taxaMontagemOrdem,
+    taxaVendaMercado,
+    receitaLiquidaTotal,
+    prataPorFoco,
   };
 
   const detalhes = gerarDetalhesAnaliticos(request, response);
