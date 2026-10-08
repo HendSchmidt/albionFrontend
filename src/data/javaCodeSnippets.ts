@@ -9,7 +9,7 @@ export const JAVA_SNIPPETS: JavaSnippet[] = [
   {
     filename: 'CalculaViabilidadeDeProdcao.java',
     pacote: 'com.albion.api.service',
-    descricao: 'Classe de Serviço que calcula custos de insumos (com RRR), taxa da barraca da cidade, receita de diários, taxas de mercado e Silver per Focus (SPF).',
+    descricao: 'Classe de Serviço com a regra completa: compra de diários vazios, preenchimento, venda de cheios, taxa da barraca, taxas de mercado e SPF.',
     codigo: `package com.albion.api.service;
 
 import com.albion.api.dto.CraftRequestDto;
@@ -41,11 +41,11 @@ public class CalculaViabilidadeDeProdcao {
 	private static final BigDecimal CEM = new BigDecimal("100");
 
 	/**
-	 * Calcula o custo por recurso, taxas de estação, receitas de diários,
-	 * taxas de mercado e o lucro líquido final com métrica de Silver per Focus (SPF).
+	 * Calcula o custo por recurso, taxas de estação, ciclo completo dos diários de artesão
+	 * (compra do vazio vs venda do cheio com taxas), taxas de mercado e Silver per Focus (SPF).
 	 *
 	 * @param request DTO com todos os parâmetros de craft do Albion Online.
-	 * @return CraftResponseDto detalhado.
+	 * @return CraftResponseDto com detalhamento econômico completo.
 	 */
 	public CraftResponseDto calcular(CraftRequestDto request) {
 		if (request == null || request.recurso() == null) {
@@ -98,51 +98,67 @@ public class CalculaViabilidadeDeProdcao {
 					.setScale(2, RoundingMode.HALF_UP);
 		}
 
-		// Custo Total da Produção = Custo de Insumos + Taxa da Estação
-		BigDecimal custoTotalProducao = custoInsumos.add(custoTaxaEstacao).setScale(2, RoundingMode.HALF_UP);
-
-		// 3. Receita Bruta da Venda dos Itens
+		// 3. Taxas de Mercado (Itens Fabricados):
 		BigDecimal precoVenda = request.precoDeVenda() != null ? request.precoDeVenda() : BigDecimal.ZERO;
 		BigDecimal receitaBrutaItens = precoVenda
 				.multiply(BigDecimal.valueOf(quantidadeProducao))
 				.setScale(2, RoundingMode.HALF_UP);
 
-		// 4. Receita com Diários de Artesão (Crafting Journals)
-		BigDecimal receitaDiarios = BigDecimal.ZERO;
-		if (request.quantidadeDiarios() != null && request.quantidadeDiarios() > 0 &&
-				request.valorVendaDiario() != null && request.valorVendaDiario().compareTo(BigDecimal.ZERO) > 0) {
-			receitaDiarios = request.valorVendaDiario()
-					.multiply(BigDecimal.valueOf(request.quantidadeDiarios()))
-					.setScale(2, RoundingMode.HALF_UP);
-		}
-
-		// 5. Taxas do Mercado de Albion Online:
-		// Taxa de Venda: 6% com Premium / 12% sem Premium
 		BigDecimal aliquotaVenda = request.contaPremium()
 				? TAXA_MERCADO_COM_PREMIUM
 				: TAXA_MERCADO_SEM_PREMIUM;
-		BigDecimal taxaVendaMercado = receitaBrutaItens
+		BigDecimal taxaVendaItens = receitaBrutaItens
 				.multiply(aliquotaVenda)
 				.setScale(2, RoundingMode.HALF_UP);
 
-		// Taxa de Montagem de Ordem (Setup Fee): 2.5% apenas se for vendido via Ordem de Venda
 		boolean ehOrdemDeVenda = request.ordemDeVenda() == null || request.ordemDeVenda();
-		BigDecimal taxaMontagemOrdem = ehOrdemDeVenda
-				? receitaBrutaItens.multiply(TAXA_MONTAGEM_ORDEM).setScale(2, RoundingMode.HALF_UP)
-				: BigDecimal.ZERO;
-
-		BigDecimal totalTaxasMercado = taxaVendaMercado.add(taxaMontagemOrdem);
-
-		// Receita Líquida Total = (Receita Bruta - Taxas de Mercado) + Receita de Diários
-		BigDecimal receitaLiquidaTotal = receitaBrutaItens
-				.subtract(totalTaxasMercado)
-				.add(receitaDiarios)
+		BigDecimal taxaMontagemOrdemAliquota = ehOrdemDeVenda ? TAXA_MONTAGEM_ORDEM : BigDecimal.ZERO;
+		BigDecimal taxaMontagemItens = receitaBrutaItens
+				.multiply(taxaMontagemOrdemAliquota)
 				.setScale(2, RoundingMode.HALF_UP);
+
+		BigDecimal receitaLiquidaItens = receitaBrutaItens
+				.subtract(taxaVendaItens)
+				.subtract(taxaMontagemItens)
+				.setScale(2, RoundingMode.HALF_UP);
+
+		// 4. Operação Completa com Diários de Artesão (Crafting Journals):
+		BigDecimal custoDiariosVazios = BigDecimal.ZERO;
+		BigDecimal receitaBrutaDiarios = BigDecimal.ZERO;
+		BigDecimal taxaVendaDiarios = BigDecimal.ZERO;
+		BigDecimal taxaMontagemDiarios = BigDecimal.ZERO;
+		BigDecimal receitaLiquidaDiarios = BigDecimal.ZERO;
+		BigDecimal lucroLiquidoDiarios = BigDecimal.ZERO;
+
+		int qtdDiarios = request.quantidadeDiarios() != null ? Math.max(0, request.quantidadeDiarios()) : 0;
+		if (qtdDiarios > 0) {
+			BigDecimal precoCheio = request.precoDiarioCheio() != null && request.precoDiarioCheio().compareTo(BigDecimal.ZERO) > 0
+					? request.precoDiarioCheio()
+					: (request.valorVendaDiario() != null ? request.valorVendaDiario() : BigDecimal.ZERO);
+
+			receitaBrutaDiarios = precoCheio.multiply(BigDecimal.valueOf(qtdDiarios)).setScale(2, RoundingMode.HALF_UP);
+			BigDecimal precoVazio = request.precoDiarioVazio() != null ? request.precoDiarioVazio() : BigDecimal.ZERO;
+			custoDiariosVazios = precoVazio.multiply(BigDecimal.valueOf(qtdDiarios)).setScale(2, RoundingMode.HALF_UP);
+
+			taxaVendaDiarios = receitaBrutaDiarios.multiply(aliquotaVenda).setScale(2, RoundingMode.HALF_UP);
+			taxaMontagemDiarios = receitaBrutaDiarios.multiply(taxaMontagemOrdemAliquota).setScale(2, RoundingMode.HALF_UP);
+
+			receitaLiquidaDiarios = receitaBrutaDiarios.subtract(taxaVendaDiarios).subtract(taxaMontagemDiarios).setScale(2, RoundingMode.HALF_UP);
+			lucroLiquidoDiarios = receitaLiquidaDiarios.subtract(custoDiariosVazios).setScale(2, RoundingMode.HALF_UP);
+		}
+
+		// 5. Consolidação de Custos, Taxas e Receitas:
+		BigDecimal custoTotalProducao = custoInsumos
+				.add(custoTaxaEstacao)
+				.add(custoDiariosVazios)
+				.setScale(2, RoundingMode.HALF_UP);
+
+		BigDecimal taxaVendaTotal = taxaVendaItens.add(taxaVendaDiarios).setScale(2, RoundingMode.HALF_UP);
+		BigDecimal taxaMontagemTotal = taxaMontagemItens.add(taxaMontagemDiarios).setScale(2, RoundingMode.HALF_UP);
+		BigDecimal receitaLiquidaTotal = receitaLiquidaItens.add(receitaLiquidaDiarios).setScale(2, RoundingMode.HALF_UP);
 
 		// 6. Lucro Líquido Final = Receita Líquida Total - Custo Total da Produção
-		BigDecimal lucro = receitaLiquidaTotal
-				.subtract(custoTotalProducao)
-				.setScale(2, RoundingMode.HALF_UP);
+		BigDecimal lucro = receitaLiquidaTotal.subtract(custoTotalProducao).setScale(2, RoundingMode.HALF_UP);
 
 		// 7. Métrica de Prata por Ponto de Foco (Silver per Focus - SPF)
 		BigDecimal prataPorFoco = BigDecimal.ZERO;
@@ -156,9 +172,11 @@ public class CalculaViabilidadeDeProdcao {
 				custosPorRecurso,
 				lucro,
 				custoTaxaEstacao,
-				receitaDiarios,
-				taxaMontagemOrdem,
-				taxaVendaMercado,
+				receitaLiquidaDiarios,
+				custoDiariosVazios,
+				lucroLiquidoDiarios,
+				taxaMontagemTotal,
+				taxaVendaTotal,
 				receitaLiquidaTotal,
 				prataPorFoco
 		);
@@ -202,7 +220,7 @@ public class ProjecaoDeFaturamentoController {
   {
     filename: 'CraftRequestDto.java',
     pacote: 'com.albion.api.dto',
-    descricao: 'Record de entrada com suporte a taxa da barraca, diários, foco e tipo de venda.',
+    descricao: 'Record com suporte ao preço do diário vazio e diário cheio para apurar a viabilidade.',
     codigo: `package com.albion.api.dto;
 
 import java.math.BigDecimal;
@@ -214,14 +232,15 @@ public record CraftRequestDto(
 		int taxaDeRetorno,
 		BigDecimal precoDeVenda,
 		boolean contaPremium,
-		// Funcionalidades avançadas da economia do Albion Online:
-		BigDecimal taxaEstacaoPorCemNutricao, // Taxa da barraca (por 100 de nutrição)
-		BigDecimal itemValue,                 // Item Value para cálculo da nutrição
-		Integer quantidadeDiarios,            // Quantidade de diários preenchidos
-		BigDecimal valorVendaDiario,          // Preço de venda de cada diário cheio
-		Boolean ordemDeVenda,                 // true = Ordem de Venda (2.5%), false = Venda Instantânea
-		Boolean usarFoco,                     // Se utilizou foco de produção
-		Integer custoFocoTotal                // Quantidade total de pontos de foco gastos
+		BigDecimal taxaEstacaoPorCemNutricao,
+		BigDecimal itemValue,
+		Integer quantidadeDiarios,
+		BigDecimal precoDiarioVazio,   // Preço de compra do diário vazio no mercado
+		BigDecimal precoDiarioCheio,   // Preço de venda do diário cheio no mercado
+		BigDecimal valorVendaDiario,   // Compatibilidade retroativa
+		Boolean ordemDeVenda,
+		Boolean usarFoco,
+		Integer custoFocoTotal
 ) {
 	public CraftRequestDto(
 			List<RecursoRequestDto> recurso,
@@ -231,7 +250,7 @@ public record CraftRequestDto(
 			boolean contaPremium
 	) {
 		this(recurso, quantidadeParaProducao, taxaDeRetorno, precoDeVenda, contaPremium,
-				null, null, null, null, true, false, null);
+				null, null, null, null, null, null, true, false, null);
 	}
 }
 `,
@@ -239,7 +258,7 @@ public record CraftRequestDto(
   {
     filename: 'CraftResponseDto.java',
     pacote: 'com.albion.api.dto',
-    descricao: 'Record de resposta com custo total, diários, taxas detalhadas e Silver per Focus (SPF).',
+    descricao: 'Record com custo de compra dos diários vazios e lucro líquido real obtido com os diários.',
     codigo: `package com.albion.api.dto;
 
 import java.math.BigDecimal;
@@ -249,13 +268,14 @@ public record CraftResponseDto(
 		BigDecimal custoTotalDaProdcao,
 		List<RecursoResponseDto> custoPorRecurso,
 		BigDecimal lucro,
-		// Detalhamento econômico avançado:
-		BigDecimal custoTaxaEstacao,    // Valor pago ao dono da barraca de fabricação
-		BigDecimal receitaDiarios,       // Receita extra obtida com diários cheios
-		BigDecimal taxaMontagemOrdem,    // Taxa de 2.5% de setup fee (ordem de venda)
-		BigDecimal taxaVendaMercado,     // Taxa de venda (6% premium / 12% sem premium)
-		BigDecimal receitaLiquidaTotal,  // Receita líquida total
-		BigDecimal prataPorFoco          // Métrica Silver per Focus (SPF)
+		BigDecimal custoTaxaEstacao,
+		BigDecimal receitaDiarios,       // Receita líquida obtida na venda dos diários
+		BigDecimal custoDiariosVazios,   // Custo total pago na compra dos diários vazios
+		BigDecimal lucroLiquidoDiarios,  // Lucro limpo obtido com os diários após custo e taxas
+		BigDecimal taxaMontagemOrdem,
+		BigDecimal taxaVendaMercado,
+		BigDecimal receitaLiquidaTotal,
+		BigDecimal prataPorFoco
 ) {
 	public CraftResponseDto(
 			BigDecimal custoTotalDaProdcao,
@@ -263,7 +283,8 @@ public record CraftResponseDto(
 			BigDecimal lucro
 	) {
 		this(custoTotalDaProdcao, custoPorRecurso, lucro,
-				BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+				BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+				BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 	}
 }
 `,
@@ -271,7 +292,7 @@ public record CraftResponseDto(
   {
     filename: 'CalculaViabilidadeDeProdcaoTest.java',
     pacote: 'com.albion.api.service',
-    descricao: 'Testes unitários JUnit 5 para validação com taxa de estação, diários de artesão e SPF.',
+    descricao: 'Teste unitário JUnit 5 validando o ciclo de compra de diário vazio e venda do diário cheio.',
     codigo: `package com.albion.api.service;
 
 import com.albion.api.dto.CraftRequestDto;
@@ -296,8 +317,8 @@ class CalculaViabilidadeDeProdcaoTest {
 	}
 
 	@Test
-	@DisplayName("Deve calcular com taxa da estação, diários de artesão e venda instantânea")
-	void deveCalcularComTaxaEstacaoEDiarios() {
+	@DisplayName("Deve calcular operação completa com compra de diário vazio e venda do diário cheio")
+	void deveCalcularOperacaoComDiariosCompletos() {
 		CraftRequestDto request = new CraftRequestDto(
 				List.of(new RecursoRequestDto("Barra de Ferro T4", 16, new BigDecimal("200.00"))),
 				5,
@@ -307,7 +328,9 @@ class CalculaViabilidadeDeProdcaoTest {
 				new BigDecimal("500.00"),
 				new BigDecimal("800.00"),
 				2,
-				new BigDecimal("3500.00"),
+				new BigDecimal("1200.00"), // Compra vazio = 1.200 cada (Total = 2.400)
+				new BigDecimal("5000.00"), // Venda cheio = 5.000 cada (Total bruto = 10.000)
+				null,
 				false,
 				true,
 				1000
@@ -316,14 +339,12 @@ class CalculaViabilidadeDeProdcaoTest {
 		CraftResponseDto response = service.calcular(request);
 
 		assertNotNull(response);
-		assertEquals(new BigDecimal("14250.00"), response.custoTotalDaProdcao());
-		assertEquals(new BigDecimal("2250.00"), response.custoTaxaEstacao());
-		assertEquals(new BigDecimal("7000.00"), response.receitaDiarios());
-		assertEquals(new BigDecimal("0.00"), response.taxaMontagemOrdem());
-		assertEquals(new BigDecimal("1800.00"), response.taxaVendaMercado());
-		assertEquals(new BigDecimal("35200.00"), response.receitaLiquidaTotal());
+		assertEquals(new BigDecimal("2400.00"), response.custoDiariosVazios());
+		assertEquals(new BigDecimal("9400.00"), response.receitaDiarios());
+		assertEquals(new BigDecimal("7000.00"), response.lucroLiquidoDiarios());
+		assertEquals(new BigDecimal("16650.00"), response.custoTotalDaProdcao());
+		assertEquals(new BigDecimal("37600.00"), response.receitaLiquidaTotal());
 		assertEquals(new BigDecimal("20950.00"), response.lucro());
-		assertEquals(new BigDecimal("20.95"), response.prataPorFoco());
 	}
 }
 `,

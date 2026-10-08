@@ -33,8 +33,9 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       contaPremium: true,
       taxaEstacaoPorCemNutricao: 600,
       itemValue: 480,
-      quantidadeDiarios: 1,
-      valorVendaDiario: 3200,
+      quantidadeDiarios: 2,
+      precoDiarioVazio: 1200, // Preço de compra do diário T4 vazio
+      precoDiarioCheio: 4500, // Preço de venda do diário T4 cheio
       ordemDeVenda: true,
       usarFoco: false,
       custoFocoTotal: 1200,
@@ -59,7 +60,8 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaEstacaoPorCemNutricao: 700,
       itemValue: 960,
       quantidadeDiarios: 3,
-      valorVendaDiario: 6500,
+      precoDiarioVazio: 2100, // Preço de compra do diário T5 vazio
+      precoDiarioCheio: 8200, // Preço de venda do diário T5 cheio
       ordemDeVenda: true,
       usarFoco: false,
       custoFocoTotal: 2500,
@@ -77,13 +79,14 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
     icone: '🏹',
     dto: {
       quantidadeParaProducao: 4,
-      taxaDeRetorno: 48, // Com foco de produção
+      taxaDeRetorno: 48,
       precoDeVenda: 75000,
       contaPremium: true,
       taxaEstacaoPorCemNutricao: 800,
       itemValue: 1920,
       quantidadeDiarios: 2,
-      valorVendaDiario: 14000,
+      precoDiarioVazio: 3500, // Preço de compra do diário T6 vazio
+      precoDiarioCheio: 18000, // Preço de venda do diário T6 cheio
       ordemDeVenda: true,
       usarFoco: true,
       custoFocoTotal: 1800,
@@ -107,8 +110,9 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaEstacaoPorCemNutricao: 650,
       itemValue: 960,
       quantidadeDiarios: 2,
-      valorVendaDiario: 6200,
-      ordemDeVenda: false, // Venda instantânea
+      precoDiarioVazio: 2100,
+      precoDiarioCheio: 8000,
+      ordemDeVenda: false,
       usarFoco: false,
       custoFocoTotal: 1600,
       recurso: [
@@ -132,7 +136,8 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaEstacaoPorCemNutricao: 500,
       itemValue: 240,
       quantidadeDiarios: 4,
-      valorVendaDiario: 2800,
+      precoDiarioVazio: 900,
+      precoDiarioCheio: 3400,
       ordemDeVenda: true,
       usarFoco: false,
       custoFocoTotal: 800,
@@ -157,7 +162,8 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       taxaEstacaoPorCemNutricao: 1000,
       itemValue: 3840,
       quantidadeDiarios: 1,
-      valorVendaDiario: 28000,
+      precoDiarioVazio: 6000,
+      precoDiarioCheio: 35000,
       ordemDeVenda: true,
       usarFoco: true,
       custoFocoTotal: 2200,

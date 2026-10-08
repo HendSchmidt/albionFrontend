@@ -520,22 +520,27 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 </div>
               </div>
 
-              {/* 2. Diários de Artesão (Crafting Journals) */}
+              {/* 2. Diários de Artesão (Crafting Journals) - Ciclo Completo */}
               <div className="space-y-2 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
                 <div className="flex items-center justify-between">
                   <Tooltip
-                    title="Diários de Artesão (Journals)"
-                    content="Carregar diários vazios na mochila preenche-os com fama ao fabricar. Os diários cheios podem ser vendidos no mercado ou entregues aos trabalhadores na ilha para trazer recursos, aumentando muito o lucro líquido!"
-                    formula="Receita Diários = Qtd Diários × Preço Venda"
+                    title="Ciclo dos Diários de Artesão"
+                    content="Comprar o diário vazio no mercado -> Encher com a fama obtida no craft -> Vender o diário cheio por um preço com lucro. O sistema desconta o custo do vazio e as taxas de mercado para apurar se vale a pena!"
+                    formula="Lucro Diários = (Preço Cheio - Taxas) - Preço Vazio"
                   >
                     <label className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
                       <BookOpen className="w-3.5 h-3.5" />
-                      Diários de Artesão (Cheios)
+                      Diários de Artesão
                     </label>
                   </Tooltip>
-                  <span className="text-[10px] text-slate-400">Lucro Extra</span>
+                  {((request.precoDiarioCheio ?? request.valorVendaDiario ?? 0) > (request.precoDiarioVazio ?? 0)) && (
+                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      Spread: +{((request.precoDiarioCheio ?? request.valorVendaDiario ?? 0) - (request.precoDiarioVazio ?? 0)).toLocaleString('pt-BR')} 🪙
+                    </span>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <span className="text-[10px] text-slate-400 block mb-1">Qtd Preenchida:</span>
                     <input
@@ -548,23 +553,42 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                           quantidadeDiarios: Math.max(0, parseInt(e.target.value) || 0),
                         }))
                       }
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-bold focus:outline-none"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-cyan-300 font-bold focus:outline-none"
                     />
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block mb-1">Valor do Diário:</span>
+                    <span className="text-[10px] text-slate-400 block mb-1">Compra Vazio:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Ex: 1.200"
+                      value={request.precoDiarioVazio ?? 0}
+                      onChange={(e) =>
+                        setRequest((prev) => ({
+                          ...prev,
+                          precoDiarioVazio: Math.max(0, parseFloat(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-rose-300 font-bold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block mb-1">Venda Cheio:</span>
                     <input
                       type="number"
                       min="0"
                       step="500"
-                      value={request.valorVendaDiario ?? 0}
+                      placeholder="Ex: 5.000"
+                      value={request.precoDiarioCheio ?? request.valorVendaDiario ?? 0}
                       onChange={(e) =>
                         setRequest((prev) => ({
                           ...prev,
+                          precoDiarioCheio: Math.max(0, parseFloat(e.target.value) || 0),
                           valorVendaDiario: Math.max(0, parseFloat(e.target.value) || 0),
                         }))
                       }
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-300 font-bold focus:outline-none"
                     />
                   </div>
                 </div>

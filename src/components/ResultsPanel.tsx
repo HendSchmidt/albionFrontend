@@ -34,6 +34,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
 
   const custoEstacao = response.custoTaxaEstacao ?? detalhes.custoTaxaEstacao ?? 0;
   const receitaDiarios = response.receitaDiarios ?? detalhes.receitaDiarios ?? 0;
+  const custoDiariosVazios = response.custoDiariosVazios ?? detalhes.custoDiariosVazios ?? 0;
+  const lucroDiarios = response.lucroLiquidoDiarios ?? detalhes.lucroLiquidoDiarios ?? (receitaDiarios - custoDiariosVazios);
   const taxaMontagem = response.taxaMontagemOrdem ?? detalhes.taxaMontagemOrdem ?? 0;
   const taxaVenda = response.taxaVendaMercado ?? detalhes.valorTaxaMercado ?? 0;
   const spf = response.prataPorFoco ?? detalhes.prataPorFoco ?? 0;
@@ -199,12 +201,18 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 text-slate-400 text-xs">
             <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Receita c/ Diários</span>
+            <span>Diários de Artesão</span>
           </div>
           <div className="text-sm font-bold text-cyan-300">
-            +{receitaDiarios.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Pratas
+            {lucroDiarios > 0
+              ? `+${lucroDiarios.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Lucro Líquido)`
+              : `${lucroDiarios.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} Pratas`}
           </div>
-          <div className="text-[10px] text-slate-400">Venda de diários preenchidos</div>
+          <div className="text-[10px] text-slate-400">
+            {custoDiariosVazios > 0
+              ? `Compra Vazio: ${custoDiariosVazios.toLocaleString('pt-BR')} | Venda Líq: ${receitaDiarios.toLocaleString('pt-BR')}`
+              : 'Sem diários no lote'}
+          </div>
         </div>
 
         {/* Taxas Totais de Mercado */}

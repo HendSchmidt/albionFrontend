@@ -14,7 +14,9 @@ export interface CraftRequestDto {
   taxaEstacaoPorCemNutricao?: number; // Ex: 500 pratas por 100 de nutrição
   itemValue?: number;                 // Item Value oficial do Albion para cálculo de nutrição
   quantidadeDiarios?: number;         // Diários de artesão preenchidos
-  valorVendaDiario?: number;          // Preço de venda de cada diário cheio
+  precoDiarioVazio?: number;          // Preço de compra de cada diário vazio no mercado
+  precoDiarioCheio?: number;          // Preço de venda de cada diário cheio no mercado
+  valorVendaDiario?: number;          // Mantido para compatibilidade retroativa
   ordemDeVenda?: boolean;             // true = Ordem de Venda (2.5% taxa de montagem), false = Venda Instantânea
   usarFoco?: boolean;                 // Se utilizou foco de produção
   custoFocoTotal?: number;            // Quantidade total de pontos de foco gastos
@@ -29,9 +31,11 @@ export interface CraftResponseDto {
   custoTotalDaProdcao: number;
   custoPorRecurso: RecursoResponseDto[];
   lucro: number;
-  // Detalhamento avançado:
+  // Detalhamento avançado de mercado e diários:
   custoTaxaEstacao?: number;
-  receitaDiarios?: number;
+  receitaDiarios?: number;        // Receita líquida dos diários
+  custoDiariosVazios?: number;    // Custo total pago nos diários vazios
+  lucroLiquidoDiarios?: number;   // Lucro líquido real gerado pelos diários
   taxaMontagemOrdem?: number;
   taxaVendaMercado?: number;
   receitaLiquidaTotal?: number;
@@ -47,6 +51,9 @@ export interface DetalhesCalculo {
   valorTaxaMercado: number;
   taxaMontagemOrdem: number;
   receitaDiarios: number;
+  custoDiariosVazios: number;
+  lucroLiquidoDiarios: number;
+  valeAPenaDiarios: boolean;
   custoTaxaEstacao: number;
   receitaLiquida: number;
   margemLucroPercentual: number;

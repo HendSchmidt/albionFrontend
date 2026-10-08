@@ -103,11 +103,20 @@ export function gerarDetalhesAnaliticos(
   const ehOrdemDeVenda = request.ordemDeVenda === undefined || request.ordemDeVenda;
   const taxaMontagemOrdem = response.taxaMontagemOrdem ?? (ehOrdemDeVenda ? Math.round(receitaBruta * 0.025 * 100) / 100 : 0);
 
-  const receitaDiarios = response.receitaDiarios ?? (
-    request.quantidadeDiarios && request.valorVendaDiario
-      ? Math.round(request.quantidadeDiarios * request.valorVendaDiario * 100) / 100
-      : 0
-  );
+  // Diários de artesão
+  const qtdDiarios = request.quantidadeDiarios || 0;
+  const precoVazio = request.precoDiarioVazio || 0;
+  const precoCheio = request.precoDiarioCheio || request.valorVendaDiario || 0;
+
+  const custoDiariosVazios = response.custoDiariosVazios ?? Math.round(qtdDiarios * precoVazio * 100) / 100;
+
+  // Receita líquida dos diários após taxas
+  const taxaDiariosPercent = (taxaMercadoPercentual + (ehOrdemDeVenda ? 2.5 : 0)) / 100.0;
+  const receitaLiquidaDiariosEstimada = Math.round((qtdDiarios * precoCheio * (1.0 - taxaDiariosPercent)) * 100) / 100;
+  const receitaDiarios = response.receitaDiarios ?? receitaLiquidaDiariosEstimada;
+
+  const lucroLiquidoDiarios = response.lucroLiquidoDiarios ?? Math.round((receitaDiarios - custoDiariosVazios) * 100) / 100;
+  const valeAPenaDiarios = qtdDiarios > 0 && lucroLiquidoDiarios > 0;
 
   const custoTaxaEstacao = response.custoTaxaEstacao ?? 0;
 
@@ -136,6 +145,9 @@ export function gerarDetalhesAnaliticos(
     valorTaxaMercado,
     taxaMontagemOrdem,
     receitaDiarios,
+    custoDiariosVazios,
+    lucroLiquidoDiarios,
+    valeAPenaDiarios,
     custoTaxaEstacao,
     receitaLiquida,
     margemLucroPercentual,
@@ -146,7 +158,7 @@ export function gerarDetalhesAnaliticos(
 }
 
 /**
- * Cálculo local com todas as regras avançadas do Albion Online.
+ * Cálculo local alternativo com suporte ao ciclo de diários vazios e cheios.
  */
 export function calcularViabilidadeLocal(request: CraftRequestDto): {
   response: CraftResponseDto;
@@ -167,7 +179,7 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     custoPorRecurso.reduce((acc, curr) => acc + curr.valor, 0) * 100
   ) / 100;
 
-  // Taxa da estação de fabricação (Station / Nutrition Fee)
+  // Taxa da estação de fabricação
   let custoTaxaEstacao = 0;
   if (request.taxaEstacaoPorCemNutricao && request.taxaEstacaoPorCemNutricao > 0) {
     const itemValue = request.itemValue && request.itemValue > 0
@@ -177,30 +189,44 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     custoTaxaEstacao = Math.round((nutricao / 100.0) * request.taxaEstacaoPorCemNutricao * 100) / 100;
   }
 
-  const custoTotalDaProdcao = Math.round((custoInsumos + custoTaxaEstacao) * 100) / 100;
+  // Operação de Diários de Artesão
+  const qtdDiarios = request.quantidadeDiarios || 0;
+  const precoVazio = request.precoDiarioVazio || 0;
+  const precoCheio = request.precoDiarioCheio || request.valorVendaDiario || 0;
+
+  const custoDiariosVazios = Math.round(qtdDiarios * precoVazio * 100) / 100;
+  const receitaBrutaDiarios = Math.round(qtdDiarios * precoCheio * 100) / 100;
+
+  // Custo Total da Produção = Insumos + Loja + Diários Vazios Comprados
+  const custoTotalDaProdcao = Math.round((custoInsumos + custoTaxaEstacao + custoDiariosVazios) * 100) / 100;
 
   // Receita bruta dos itens
-  const receitaBruta = Math.round((request.precoDeVenda || 0) * quantidadeProducao * 100) / 100;
+  const receitaBrutaItens = Math.round((request.precoDeVenda || 0) * quantidadeProducao * 100) / 100;
 
-  // Diários de artesão
-  let receitaDiarios = 0;
-  if (request.quantidadeDiarios && request.valorVendaDiario) {
-    receitaDiarios = Math.round(request.quantidadeDiarios * request.valorVendaDiario * 100) / 100;
-  }
-
-  // Taxas de mercado
+  // Taxas do mercado
   const taxaMercadoAliquota = request.contaPremium ? 0.06 : 0.12;
-  const taxaVendaMercado = Math.round(receitaBruta * taxaMercadoAliquota * 100) / 100;
+  const taxaVendaItens = Math.round(receitaBrutaItens * taxaMercadoAliquota * 100) / 100;
 
   const ehOrdemDeVenda = request.ordemDeVenda === undefined || request.ordemDeVenda;
-  const taxaMontagemOrdem = ehOrdemDeVenda ? Math.round(receitaBruta * 0.025 * 100) / 100 : 0;
+  const taxaMontagemOrdemAliquota = ehOrdemDeVenda ? 0.025 : 0;
+  const taxaMontagemItens = Math.round(receitaBrutaItens * taxaMontagemOrdemAliquota * 100) / 100;
 
-  const totalTaxasMercado = Math.round((taxaVendaMercado + taxaMontagemOrdem) * 100) / 100;
-  const receitaLiquidaTotal = Math.round((receitaBruta - totalTaxasMercado + receitaDiarios) * 100) / 100;
+  // Taxas aplicadas também sobre a venda dos diários
+  const taxaVendaDiarios = Math.round(receitaBrutaDiarios * taxaMercadoAliquota * 100) / 100;
+  const taxaMontagemDiarios = Math.round(receitaBrutaDiarios * taxaMontagemOrdemAliquota * 100) / 100;
+
+  const receitaLiquidaDiarios = Math.round((receitaBrutaDiarios - taxaVendaDiarios - taxaMontagemDiarios) * 100) / 100;
+  const lucroLiquidoDiarios = Math.round((receitaLiquidaDiarios - custoDiariosVazios) * 100) / 100;
+
+  const taxaVendaTotal = Math.round((taxaVendaItens + taxaVendaDiarios) * 100) / 100;
+  const taxaMontagemTotal = Math.round((taxaMontagemItens + taxaMontagemDiarios) * 100) / 100;
+
+  const receitaLiquidaTotal = Math.round((
+    (receitaBrutaItens - taxaVendaItens - taxaMontagemItens) + receitaLiquidaDiarios
+  ) * 100) / 100;
 
   const lucro = Math.round((receitaLiquidaTotal - custoTotalDaProdcao) * 100) / 100;
 
-  // Prata por ponto de foco (SPF)
   let prataPorFoco = 0;
   if (request.usarFoco && request.custoFocoTotal && request.custoFocoTotal > 0) {
     prataPorFoco = Math.round((lucro / request.custoFocoTotal) * 100) / 100;
@@ -211,9 +237,11 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     custoPorRecurso,
     lucro,
     custoTaxaEstacao,
-    receitaDiarios,
-    taxaMontagemOrdem,
-    taxaVendaMercado,
+    receitaDiarios: receitaLiquidaDiarios,
+    custoDiariosVazios,
+    lucroLiquidoDiarios,
+    taxaMontagemOrdem: taxaMontagemTotal,
+    taxaVendaMercado: taxaVendaTotal,
     receitaLiquidaTotal,
     prataPorFoco,
   };
