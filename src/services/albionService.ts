@@ -264,3 +264,125 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
 
   return { response, detalhes };
 }
+
+// ---------------------------------------------------------------------------------
+// Funções para Cálculo de Nutrição e Venda em Barraquinhas de Albion Online
+// ---------------------------------------------------------------------------------
+import { FoodNutritionSaleRequestDto, FoodNutritionSaleResponseDto } from '../types/albion';
+
+/**
+ * Cálculo local determinístico para venda de comida em barraquinha.
+ */
+export function calcularNutricaoLocal(
+  request: FoodNutritionSaleRequestDto
+): FoodNutritionSaleResponseDto {
+  const nutricaoBase = request.nutricaoPorUnidade || 0;
+  const nutricaoEfetiva = request.comidaFavorita ? nutricaoBase * 2 : nutricaoBase;
+
+  const valorPorCem = request.valorPorCemNutricao || 0;
+  const valorPagoPorUnidade = Math.round((nutricaoEfetiva / 100) * valorPorCem * 100) / 100;
+
+  const qtdTotal = Math.max(1, request.quantidadeProducao || 1);
+  const receitaTotalBarraquinha = Math.round(valorPagoPorUnidade * qtdTotal * 100) / 100;
+
+  const trr = (request.taxaDeRetorno || 0) / 100;
+  const fatorConsumo = Math.max(0, 1 - trr);
+
+  let custoInsumos = 0;
+  (request.ingredientes || []).forEach((ing) => {
+    const qtd = ing.quantidade || 0;
+    const preco = ing.valor || 0;
+    custoInsumos += qtd * preco * fatorConsumo;
+  });
+
+  const custoProducaoTotal = Math.round(custoInsumos * 100) / 100;
+  const custoProducaoPorUnidade = Math.round((custoProducaoTotal / qtdTotal) * 100) / 100;
+
+  const lucroTotalBarraquinha = Math.round((receitaTotalBarraquinha - custoProducaoTotal) * 100) / 100;
+  const lucroUnitarioBarraquinha = Math.round((valorPagoPorUnidade - custoProducaoPorUnidade) * 100) / 100;
+
+  // Mercado
+  const precoMercadoUnitario = request.precoMercadoUnitario || 0;
+  const taxaMercadoPercentual = request.contaPremium
+    ? (request.ordemDeVenda ? 6.5 : 4.0)
+    : (request.ordemDeVenda ? 10.5 : 8.0);
+
+  const aliquotaTaxa = taxaMercadoPercentual / 100;
+  const precoLiquidoMercadoUnitario = Math.round(precoMercadoUnitario * (1 - aliquotaTaxa) * 100) / 100;
+  const receitaLiquidaTotalMercado = Math.round(precoLiquidoMercadoUnitario * qtdTotal * 100) / 100;
+
+  const lucroTotalMercado = Math.round((receitaLiquidaTotalMercado - custoProducaoTotal) * 100) / 100;
+  const lucroUnitarioMercado = Math.round((precoLiquidoMercadoUnitario - custoProducaoPorUnidade) * 100) / 100;
+
+  let melhorOpcao: 'BARRAQUINHA' | 'MERCADO' | 'PREJUIZO';
+  let recomendacao: string;
+  let diferencaBarraquinhaVsMercado = 0;
+
+  if (lucroTotalBarraquinha < 0 && lucroTotalMercado < 0) {
+    melhorOpcao = 'PREJUIZO';
+    diferencaBarraquinhaVsMercado = 0;
+    recomendacao =
+      'Ambas as opções dão prejuízo com os preços informados! Tente comprar insumos com ordem de compra ou produzir com maior Taxa de Retorno (TRR).';
+  } else if (valorPagoPorUnidade >= precoLiquidoMercadoUnitario) {
+    melhorOpcao = 'BARRAQUINHA';
+    diferencaBarraquinhaVsMercado = Math.round((valorPagoPorUnidade - precoLiquidoMercadoUnitario) * qtdTotal * 100) / 100;
+    recomendacao = `Vale mais a pena vender na BARRAQUINHA! Você ganha ${valorPagoPorUnidade.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de prata por unidade de forma instantânea e sem pagar taxas. Vantagem de ${diferencaBarraquinhaVsMercado.toLocaleString('pt-BR')} pratas sobre o mercado.`;
+  } else {
+    melhorOpcao = 'MERCADO';
+    diferencaBarraquinhaVsMercado = Math.round((precoLiquidoMercadoUnitario - valorPagoPorUnidade) * qtdTotal * 100) / 100;
+    recomendacao = `Vale mais a pena vender no MERCADO! Mesmo descontando as taxas de ${taxaMercadoPercentual}%, você recebe líquido ${precoLiquidoMercadoUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de prata por unidade. Vantagem de ${diferencaBarraquinhaVsMercado.toLocaleString('pt-BR')} pratas sobre a barraquinha.`;
+  }
+
+  return {
+    nomeComida: request.nomeComida,
+    nutricaoEfetivaPorUnidade: nutricaoEfetiva,
+    valorPagoPorUnidadeBarraquinha: valorPagoPorUnidade,
+    receitaTotalBarraquinha,
+    custoProducaoTotal,
+    custoProducaoPorUnidade,
+    lucroTotalBarraquinha,
+    lucroUnitarioBarraquinha,
+    precoMercadoUnitario,
+    taxaMercadoPercentual,
+    precoLiquidoMercadoUnitario,
+    receitaLiquidaTotalMercado,
+    lucroTotalMercado,
+    lucroUnitarioMercado,
+    melhorOpcao,
+    recomendacao,
+    diferencaBarraquinhaVsMercado,
+  };
+}
+
+/**
+ * Tenta chamar o Spring Boot e usa o cálculo local como fallback se estiver offline.
+ */
+export async function chamarSpringBootNutricao(
+  request: FoodNutritionSaleRequestDto,
+  baseUrl: string = DEFAULT_SPRING_BOOT_URL
+): Promise<{ response: FoodNutritionSaleResponseDto; isSpringBoot: boolean; duracaoMs?: number }> {
+  const endpoint = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '') + '/calculaVendaComidaBarraquinha';
+  const inicio = performance.now();
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (res.ok) {
+      const data: FoodNutritionSaleResponseDto = await res.json();
+      const duracaoMs = Math.round(performance.now() - inicio);
+      return { response: data, isSpringBoot: true, duracaoMs };
+    }
+  } catch (e) {
+    // Spring Boot offline
+  }
+
+  // Fallback
+  return { response: calcularNutricaoLocal(request), isSpringBoot: false };
+}

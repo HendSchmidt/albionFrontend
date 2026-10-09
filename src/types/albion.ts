@@ -33,9 +33,9 @@ export interface CraftResponseDto {
   lucro: number;
   // Detalhamento avançado de mercado e diários:
   custoTaxaEstacao?: number;
-  receitaDiarios?: number;        // Receita líquida dos diários
-  custoDiariosVazios?: number;    // Custo total pago nos diários vazios
-  lucroLiquidoDiarios?: number;   // Lucro líquido real gerado pelos diários
+  receitaDiarios?: number;
+  custoDiariosVazios?: number;
+  lucroLiquidoDiarios?: number;
   taxaMontagemOrdem?: number;
   taxaVendaMercado?: number;
   receitaLiquidaTotal?: number;
@@ -60,4 +60,52 @@ export interface DetalhesCalculo {
   roiPercentual: number;
   economiaPremium: number;
   prataPorFoco?: number;
+}
+
+// -------------------------------------------------------------
+// Tipos para a nova seção de Cálculo de Comida para Barraquinha:
+// -------------------------------------------------------------
+export interface FoodNutritionSaleRequestDto {
+  nomeComida: string;
+  tier: string;
+  nutricaoPorUnidade: number;
+  comidaFavorita: boolean;
+  valorPorCemNutricao: number; // X configurado pelo dono da barraquinha
+  quantidadeProducao: number;  // Qtd total de unidades (ex: 10 un por clique * cliques)
+  taxaDeRetorno: number;      // TRR em % (ex: 15 ou 25 ou 48)
+  precoMercadoUnitario: number;// Preço de venda unitário no mercado
+  contaPremium: boolean;
+  ordemDeVenda: boolean;       // true = Ordem de venda (6.5%), false = Venda direta (4%)
+  ingredientes: RecursoRequestDto[];
+}
+
+export interface FoodNutritionSaleResponseDto {
+  nomeComida: string;
+  nutricaoEfetivaPorUnidade: number;
+  valorPagoPorUnidadeBarraquinha: number;
+  receitaTotalBarraquinha: number;
+  custoProducaoTotal: number;
+  custoProducaoPorUnidade: number;
+  lucroTotalBarraquinha: number;
+  lucroUnitarioBarraquinha: number;
+  precoMercadoUnitario: number;
+  taxaMercadoPercentual: number;
+  precoLiquidoMercadoUnitario: number;
+  receitaLiquidaTotalMercado: number;
+  lucroTotalMercado: number;
+  lucroUnitarioMercado: number;
+  melhorOpcao: 'BARRAQUINHA' | 'MERCADO' | 'PREJUIZO';
+  recomendacao: string;
+  diferencaBarraquinhaVsMercado: number;
+}
+
+export interface FoodPreset {
+  id: string;
+  nome: string;
+  tier: string;
+  nutricaoBase: number;
+  icone: string;
+  favoritaDe: string;
+  ingredientesBase: RecursoRequestDto[];
+  rendimentoPorClique: number;
 }
