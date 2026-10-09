@@ -1,9 +1,9 @@
 import React from 'react';
-import { Sparkles, Shield, Coins, BookOpen, Terminal, Calculator } from 'lucide-react';
+import { Coins, Terminal, Calculator, UtensilsCrossed } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'calculator' | 'api';
-  setActiveTab: (tab: 'calculator' | 'api') => void;
+  activeTab: 'calculator' | 'food' | 'api';
+  setActiveTab: (tab: 'calculator' | 'food' | 'api') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Viabilidade de Fabricação, Taxa de Retorno & Desconto Premium
+                Viabilidade de Fabricação, Nutrição em Barraquinhas & Desconto de Mercado
               </p>
             </div>
           </div>
@@ -35,19 +35,29 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setActiveTab('calculator')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'calculator'
                   ? 'bg-amber-500 text-slate-950 font-semibold shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
               <Calculator className="w-3.5 h-3.5" />
-              Calculadora & Simulação
+              Craft Geral
             </button>
-
+            <button
+              onClick={() => setActiveTab('food')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                activeTab === 'food'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <UtensilsCrossed className="w-3.5 h-3.5" />
+              Comida em Barraquinhas (Nutrição)
+            </button>
             <button
               onClick={() => setActiveTab('api')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'api'
                   ? 'bg-cyan-500 text-slate-950 font-semibold shadow-md shadow-cyan-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'

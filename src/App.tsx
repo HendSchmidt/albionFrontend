@@ -3,32 +3,65 @@ import { Header } from './components/Header';
 import { CraftCalculator } from './components/CraftCalculator';
 import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
-import { CraftRequestDto, CraftResponseDto, DetalhesCalculo } from './types/albion';
+import { FoodNutritionCalculator } from './components/FoodNutritionCalculator';
+import {
+  CraftRequestDto,
+  CraftResponseDto,
+  DetalhesCalculo,
+  FoodNutritionSaleRequestDto,
+  FoodNutritionSaleResponseDto,
+} from './types/albion';
 import { ALBION_ITEM_PRESETS } from './data/albionPresets';
+import { ALBION_FOOD_PRESETS } from './data/albionFoodPresets';
 import {
   chamarSpringBoot,
   calcularViabilidadeLocal,
+  chamarSpringBootNutricao,
+  calcularNutricaoLocal,
   DEFAULT_SPRING_BOOT_URL,
   ResultadoCalculo,
 } from './services/albionService';
 import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'calculator' | 'api'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('calculator');
 
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
   const [showUrlSettings, setShowUrlSettings] = useState<boolean>(false);
 
-  // Initial state using first Albion preset
+  // Initial state using first Albion preset (Guisado de Carne T8 - Culinária 10x)
   const [request, setRequest] = useState<CraftRequestDto>(() => ({
     ...ALBION_ITEM_PRESETS[0].dto,
+    recurso: ALBION_ITEM_PRESETS[0].dto.recurso.map((r) => ({ ...r })),
   }));
 
-  // Results state
+  // Results state Craft Geral
   const initialLocal = calcularViabilidadeLocal(request);
   const [response, setResponse] = useState<CraftResponseDto>(initialLocal.response);
   const [detalhes, setDetalhes] = useState<DetalhesCalculo>(initialLocal.detalhes);
+
+  // Estado para Seção Especializada: Venda de Comida para Barraquinha (Nutrição)
+  const [foodRequest, setFoodRequest] = useState<FoodNutritionSaleRequestDto>(() => {
+    const cabbagePreset = ALBION_FOOD_PRESETS[2]; // Sopa de Repolho T5
+    return {
+      nomeComida: cabbagePreset.nome,
+      tier: cabbagePreset.tier,
+      nutricaoPorUnidade: cabbagePreset.nutricaoBase,
+      comidaFavorita: false,
+      valorPorCemNutricao: 300, // Exemplo fornecido: 300 pratas por 100 de nutrição
+      quantidadeProducao: 10,  // 1 clique = 10 sopas
+      taxaDeRetorno: 15,       // TRR 15%
+      precoMercadoUnitario: 1400, // Preço no mercado
+      contaPremium: true,
+      ordemDeVenda: true,
+      ingredientes: cabbagePreset.ingredientesBase.map((ing) => ({ ...ing })),
+    };
+  });
+
+  const [foodResponse, setFoodResponse] = useState<FoodNutritionSaleResponseDto>(() =>
+    calcularNutricaoLocal(foodRequest)
+  );
 
   // Connection & execution status
   const [backendStatus, setBackendStatus] = useState<'CONNECTED' | 'OFFLINE' | 'LOADING'>('LOADING');
@@ -37,16 +70,14 @@ export default function App() {
   const [lastLatency, setLastLatency] = useState<number | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceFoodTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Função central para executar o cálculo chamando o Spring Boot
+  // Executa cálculo do Craft Geral
   const executarCalculo = useCallback(
     async (currentReq: CraftRequestDto, urlAlvo: string = backendUrl) => {
       setBackendStatus('LOADING');
-
       try {
-        // Tenta chamar o endpoint real no Spring Boot
         const resultado: ResultadoCalculo = await chamarSpringBoot(currentReq, urlAlvo);
-
         setResponse(resultado.response);
         setDetalhes(resultado.detalhes);
         setBackendStatus('CONNECTED');
@@ -56,7 +87,6 @@ export default function App() {
           `Conectado ao Spring Boot em "${urlAlvo}" (${resultado.duracaoMs}ms) - Regras Java ativas!`
         );
       } catch (err: any) {
-        // Se o Spring Boot estiver offline, usa o simulador local e avisa o usuário
         const fallback = calcularViabilidadeLocal(currentReq);
         setResponse(fallback.response);
         setDetalhes(fallback.detalhes);
@@ -64,32 +94,73 @@ export default function App() {
         setLastCalculationOrigin('SIMULADOR_LOCAL');
         setLastLatency(null);
         setStatusMessage(
-          `Spring Boot offline em "${urlAlvo}". Inicie o ApiApplication no IntelliJ/Eclipse (porta 8080) para usar as regras do seu Java.`
+          `Spring Boot offline em "${urlAlvo}". Inicie o ApiApplication (porta 8080) para conectar ao Java.`
         );
       }
     },
     [backendUrl]
   );
 
-  // Dispara o cálculo automaticamente com debounce ao alterar os dados
+  // Executa cálculo da Seção de Comida em Barraquinha
+  const executarCalculoComida = useCallback(
+    async (currentFoodReq: FoodNutritionSaleRequestDto, urlAlvo: string = backendUrl) => {
+      try {
+        const res = await chamarSpringBootNutricao(currentFoodReq, urlAlvo);
+        setFoodResponse(res.response);
+        if (res.isSpringBoot) {
+          setBackendStatus('CONNECTED');
+          setLastCalculationOrigin('SPRING_BOOT');
+          setLastLatency(res.duracaoMs || null);
+        }
+      } catch (err) {
+        setFoodResponse(calcularNutricaoLocal(currentFoodReq));
+      }
+    },
+    [backendUrl]
+  );
+
+  // Dispara o cálculo do Craft Geral com debounce
   useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      executarCalculo(request, backendUrl);
-    }, 350);
-
-    return () => {
+    if (activeTab === 'calculator') {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-    };
-  }, [request, backendUrl, executarCalculo]);
+      debounceTimerRef.current = setTimeout(() => {
+        executarCalculo(request, backendUrl);
+      }, 350);
+
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }
+  }, [request, backendUrl, executarCalculo, activeTab]);
+
+  // Dispara o cálculo de Comida com debounce
+  useEffect(() => {
+    if (activeTab === 'food') {
+      if (debounceFoodTimerRef.current) {
+        clearTimeout(debounceFoodTimerRef.current);
+      }
+      debounceFoodTimerRef.current = setTimeout(() => {
+        executarCalculoComida(foodRequest, backendUrl);
+      }, 250);
+
+      return () => {
+        if (debounceFoodTimerRef.current) {
+          clearTimeout(debounceFoodTimerRef.current);
+        }
+      };
+    }
+  }, [foodRequest, backendUrl, executarCalculoComida, activeTab]);
 
   const handleManualCalculate = () => {
-    executarCalculo(request, backendUrl);
+    if (activeTab === 'food') {
+      executarCalculoComida(foodRequest, backendUrl);
+    } else {
+      executarCalculo(request, backendUrl);
+    }
   };
 
   return (
@@ -124,7 +195,7 @@ export default function App() {
                 ) : (
                   <span className="text-rose-400 flex items-center gap-1">
                     <WifiOff className="w-3.5 h-3.5" />
-                    Spring Boot Não Detectado:
+                    Spring Boot Offline (Modo Local):
                   </span>
                 )}
               </span>
@@ -138,20 +209,18 @@ export default function App() {
                 {lastLatency}ms (Java REST API)
               </span>
             )}
-
             {backendStatus === 'OFFLINE' && (
               <button
-                onClick={() => executarCalculo(request, backendUrl)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-[11px] border border-slate-700 transition-colors"
+                onClick={handleManualCalculate}
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-[11px] border border-slate-700 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3 text-amber-400" />
                 Tentar Conectar
               </button>
             )}
-
             <button
               onClick={() => setShowUrlSettings(!showUrlSettings)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-[11px] border border-slate-700 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-[11px] border border-slate-700 transition-colors cursor-pointer"
               title="Configurar URL do backend"
             >
               <Settings className="w-3 h-3 text-slate-400" />
@@ -161,8 +230,7 @@ export default function App() {
         </div>
 
         {/* URL Settings Drawer */}
-        {showUrlSettings && (
-          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
+        {showUrlSettings && (          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
               <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-cyan-400" />
@@ -176,8 +244,8 @@ export default function App() {
                 placeholder="http://localhost:8080/calculaViabilidadePorRecurso"
               />
               <button
-                onClick={() => executarCalculo(request, backendUrl)}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition-colors"
+                onClick={handleManualCalculate}
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
               >
                 Testar & Salvar
               </button>
@@ -187,6 +255,36 @@ export default function App() {
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* TAB 1: SEÇÃO EXCLUSIVA DE COMIDA EM BARRAQUINHA (NUTRIÇÃO) */}
+        {activeTab === 'food' && (
+          <div className="space-y-6">
+            <FoodNutritionCalculator
+              request={foodRequest}
+              setRequest={setFoodRequest}
+              response={foodResponse}
+              onCalculate={handleManualCalculate}
+              isLoading={backendStatus === 'LOADING'}
+            />
+
+            <div className="flex items-center justify-between text-xs px-2 text-slate-400">
+              <div className="flex items-center gap-2">
+                {lastCalculationOrigin === 'SPRING_BOOT' ? (
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Cálculo processado pelo Spring Boot Java (`/albionApi/calculaVendaComidaBarraquinha`)!
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-amber-400/90 font-medium bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Simulador local em execução imediata (conecta automaticamente quando o Spring Boot estiver rodando).
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CALCULADORA GERAL DE CRAFT */}
         {activeTab === 'calculator' && (
           <div className="space-y-8">
             <CraftCalculator
@@ -196,7 +294,6 @@ export default function App() {
               isLoading={backendStatus === 'LOADING'}
             />
 
-            {/* Indicação visual da origem do cálculo atual */}
             <div className="flex items-center justify-between text-xs px-2 text-slate-400">
               <div className="flex items-center gap-2">
                 {lastCalculationOrigin === 'SPRING_BOOT' ? (
@@ -222,6 +319,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 3: TESTER DE API */}
         {activeTab === 'api' && <ApiTester currentRequest={request} />}
       </main>
 
@@ -231,9 +329,7 @@ export default function App() {
             Albion Online Crafting & Profitability Calculator &bull; Spring Boot REST API Service
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Taxa de Retorno de Recursos</span>
-            <span>&bull;</span>
-            <span>6% Desconto Mercado Premium</span>
+            <span>Culinária (10x) &bull; Alquimia (5x) &bull; Refino & Equip (1x)</span>
             <span>&bull;</span>
             <span className="font-mono text-amber-400">POST /calculaViabilidadePorRecurso</span>
           </div>

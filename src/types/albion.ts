@@ -4,12 +4,20 @@ export interface RecursoRequestDto {
   valor: number;
 }
 
+export type CategoriaLote = 'CULINARIA' | 'ALQUIMIA' | 'REFINO' | 'EQUIPAMENTO' | 'CUSTOMIZADO';
+
 export interface CraftRequestDto {
   recurso: RecursoRequestDto[];
-  quantidadeParaProducao: number;
-  taxaDeRetorno: number; // Ex: 15 para 15%
-  precoDeVenda: number;
+  quantidadeParaProducao: number; // Quantidade de cliques / bateladas de receita
+  taxaDeRetorno: number;          // Ex: 15 para 15%
+  precoDeVenda: number;           // Preço de venda unitário no mercado (por unidade do item final)
   contaPremium: boolean;
+  
+  // Regras de Lote de Fabricação do Albion Online:
+  // Culinária = 10 un/clique | Alquimia = 5 un/clique | Refino = 1 un/clique | Equipamentos = 1 un/clique
+  categoriaProducao?: CategoriaLote | string;
+  rendimentoPorClique?: number;   // Quantidade de itens finais gerados por 1 clique (10, 5, 1, custom)
+
   // Funcionalidades avançadas de mercado do Albion Online:
   taxaEstacaoPorCemNutricao?: number; // Ex: 500 pratas por 100 de nutrição
   itemValue?: number;                 // Item Value oficial do Albion para cálculo de nutrição
@@ -31,15 +39,23 @@ export interface CraftResponseDto {
   custoTotalDaProdcao: number;
   custoPorRecurso: RecursoResponseDto[];
   lucro: number;
+  
   // Detalhamento avançado de mercado e diários:
   custoTaxaEstacao?: number;
-  receitaDiarios?: number;        // Receita líquida dos diários
-  custoDiariosVazios?: number;    // Custo total pago nos diários vazios
-  lucroLiquidoDiarios?: number;   // Lucro líquido real gerado pelos diários
+  receitaDiarios?: number;
+  custoDiariosVazios?: number;
+  lucroLiquidoDiarios?: number;
   taxaMontagemOrdem?: number;
   taxaVendaMercado?: number;
   receitaLiquidaTotal?: number;
   prataPorFoco?: number;
+
+  // Detalhes de Lote de Fabricação do Albion:
+  totalItensProduzidos?: number;
+  rendimentoPorClique?: number;
+  custoUnitarioItemFinal?: number;
+  lucroUnitarioItemFinal?: number;
+  categoriaProducao?: string;
 }
 
 export interface DetalhesCalculo {
@@ -60,4 +76,59 @@ export interface DetalhesCalculo {
   roiPercentual: number;
   economiaPremium: number;
   prataPorFoco?: number;
+
+  // Lotes e rendimento
+  totalItensProduzidos: number;
+  rendimentoPorClique: number;
+  custoUnitarioItemFinal: number;
+  lucroUnitarioItemFinal: number;
+  categoriaProducao: string;
+}
+
+// -------------------------------------------------------------
+// Tipos para a seção de Cálculo de Comida para Barraquinha:
+// -------------------------------------------------------------
+export interface FoodNutritionSaleRequestDto {
+  nomeComida: string;
+  tier: string;
+  nutricaoPorUnidade: number;
+  comidaFavorita: boolean;
+  valorPorCemNutricao: number; // X configurado pelo dono da barraquinha
+  quantidadeProducao: number;  // Qtd total de unidades (ex: 10 un por clique * cliques)
+  taxaDeRetorno: number;       // TRR em % (ex: 15 ou 25 ou 48)
+  precoMercadoUnitario: number;// Preço de venda unitário no mercado
+  contaPremium: boolean;
+  ordemDeVenda: boolean;       // true = Ordem de venda (6.5%), false = Venda direta (4%)
+  ingredientes: RecursoRequestDto[];
+}
+
+export interface FoodNutritionSaleResponseDto {
+  nomeComida: string;
+  nutricaoEfetivaPorUnidade: number;
+  valorPagoPorUnidadeBarraquinha: number;
+  receitaTotalBarraquinha: number;
+  custoProducaoTotal: number;
+  custoProducaoPorUnidade: number;
+  lucroTotalBarraquinha: number;
+  lucroUnitarioBarraquinha: number;
+  precoMercadoUnitario: number;
+  taxaMercadoPercentual: number;
+  precoLiquidoMercadoUnitario: number;
+  receitaLiquidaTotalMercado: number;
+  lucroTotalMercado: number;
+  lucroUnitarioMercado: number;
+  melhorOpcao: 'BARRAQUINHA' | 'MERCADO' | 'PREJUIZO';
+  recomendacao: string;
+  diferencaBarraquinhaVsMercado: number;
+}
+
+export interface FoodPreset {
+  id: string;
+  nome: string;
+  tier: string;
+  nutricaoBase: number;
+  icone: string;
+  favoritaDe: string;
+  ingredientesBase: RecursoRequestDto[];
+  rendimentoPorClique: number;
 }
