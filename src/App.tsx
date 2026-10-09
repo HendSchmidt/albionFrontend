@@ -24,7 +24,7 @@ import {
 import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('food');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('calculator');
 
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
