@@ -18,6 +18,12 @@ export interface CraftRequestDto {
   taxaDeRetorno: number;
   precoDeVenda: number;
   contaPremium: boolean;
+  taxaEstacaoPorCemNutricao?: number;
+  itemValue?: number;
+  quantidadeDiarios?: number;
+  precoDiarioVazio?: number;
+  precoDiarioCheio?: number;
+  ordemDeVenda?: boolean;
 }
 
 export interface RecursoResponseDto {
@@ -29,6 +35,13 @@ export interface CraftResponseDto {
   custoTotalDaProdcao: number;
   custoPorRecurso: RecursoResponseDto[];
   lucro: number;
+  custoTaxaEstacao?: number;
+  receitaDiarios?: number;
+  custoDiariosVazios?: number;
+  lucroLiquidoDiarios?: number;
+  taxaMontagemOrdem?: number;
+  taxaVendaMercado?: number;
+  receitaLiquidaTotal?: number;
 }
 
 export function calculaViabilidadeDeProducao(dto: CraftRequestDto): CraftResponseDto {
@@ -53,29 +66,77 @@ export function calculaViabilidadeDeProducao(dto: CraftRequestDto): CraftRespons
     };
   });
 
-  // Custo total da produção = soma dos custos por recurso
-  const custoTotalDaProdcao = Math.round(
+  // Custo dos insumos consumidos
+  const custoInsumos = Math.round(
     custoPorRecurso.reduce((acc, curr) => acc + curr.valor, 0) * 100
   ) / 100;
 
+  // Taxa da estação de fabricação (barraca na cidade)
+  let custoTaxaEstacao = 0;
+  if (dto.taxaEstacaoPorCemNutricao && dto.taxaEstacaoPorCemNutricao > 0) {
+    const itemValue = dto.itemValue && dto.itemValue > 0
+      ? dto.itemValue
+      : (custoInsumos / qtdProducao || 480);
+    // Fórmula oficial do Albion Online:
+    // Nutrição total gasta = Item Value * 0.1125 * Quantidade de itens produzidos
+    const nutricao = itemValue * 0.1125 * qtdProducao;
+    // Custo da estação = (Nutrição / 100) * Taxa por 100 de Nutrição
+    custoTaxaEstacao = Math.round((nutricao / 100.0) * dto.taxaEstacaoPorCemNutricao * 100) / 100;
+  }
+
+  // Operação de Diários de Artesão
+  const qtdDiarios = dto.quantidadeDiarios || 0;
+  const precoVazio = dto.precoDiarioVazio || 0;
+  const precoCheio = dto.precoDiarioCheio || 0;
+
+  const custoDiariosVazios = Math.round(qtdDiarios * precoVazio * 100) / 100;
+  const receitaBrutaDiarios = Math.round(qtdDiarios * precoCheio * 100) / 100;
+
+  // Custo Total da Produção = Insumos consumidos + Taxa da Barraca + Compra de Diários Vazios
+  const custoTotalDaProdcao = Math.round((custoInsumos + custoTaxaEstacao + custoDiariosVazios) * 100) / 100;
+
   // Receita bruta da venda dos itens produzidos
   const precoVenda = dto.precoDeVenda || 0;
-  const receitaBruta = precoVenda * qtdProducao;
+  const receitaBrutaItens = precoVenda * qtdProducao;
 
   // Regra de mercado e Conta Premium:
   // "contapremium equivale a 6 por cento de disconto no mercado"
-  // A taxa é 6% quando possui conta premium.
-  // Sem premium: taxa de 12% (6% a mais sem o desconto da conta premium).
-  const taxaMercado = dto.contaPremium ? 0.06 : 0.12;
-  const receitaLiquida = receitaBruta * (1.0 - taxaMercado);
+  // A taxa é 6% quando possui conta premium. Sem premium: taxa de 12%.
+  const taxaMercadoAliquota = dto.contaPremium ? 0.06 : 0.12;
+  const taxaVendaItens = Math.round(receitaBrutaItens * taxaMercadoAliquota * 100) / 100;
 
-  // Lucro líquido = Receita líquida após taxas - Custo total da produção
-  const lucro = Math.round((receitaLiquida - custoTotalDaProdcao) * 100) / 100;
+  // Taxa de montagem de ordem de mercado (2.5% se for ordem de venda, 0% se for venda direta)
+  const ehOrdem = dto.ordemDeVenda === undefined || dto.ordemDeVenda;
+  const taxaMontagemItens = ehOrdem ? Math.round(receitaBrutaItens * 0.025 * 100) / 100 : 0;
+
+  // Taxas sobre os diários vendidos
+  const taxaVendaDiarios = Math.round(receitaBrutaDiarios * taxaMercadoAliquota * 100) / 100;
+  const taxaMontagemDiarios = ehOrdem ? Math.round(receitaBrutaDiarios * 0.025 * 100) / 100 : 0;
+
+  const receitaLiquidaDiarios = Math.round((receitaBrutaDiarios - taxaVendaDiarios - taxaMontagemDiarios) * 100) / 100;
+  const lucroLiquidoDiarios = Math.round((receitaLiquidaDiarios - custoDiariosVazios) * 100) / 100;
+
+  const taxaVendaTotal = Math.round((taxaVendaItens + taxaVendaDiarios) * 100) / 100;
+  const taxaMontagemTotal = Math.round((taxaMontagemItens + taxaMontagemDiarios) * 100) / 100;
+
+  const receitaLiquidaTotal = Math.round(
+    (receitaBrutaItens - taxaVendaItens - taxaMontagemItens + receitaLiquidaDiarios) * 100
+  ) / 100;
+
+  // Lucro líquido = Receita líquida total após taxas - Custo total da produção (incluindo taxa da barraca)
+  const lucro = Math.round((receitaLiquidaTotal - custoTotalDaProdcao) * 100) / 100;
 
   return {
     custoTotalDaProdcao,
     custoPorRecurso,
     lucro,
+    custoTaxaEstacao,
+    receitaDiarios: receitaLiquidaDiarios,
+    custoDiariosVazios,
+    lucroLiquidoDiarios,
+    taxaMontagemOrdem: taxaMontagemTotal,
+    taxaVendaMercado: taxaVendaTotal,
+    receitaLiquidaTotal,
   };
 }
 

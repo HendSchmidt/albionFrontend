@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { CraftRequestDto, RecursoRequestDto } from '../types/albion';
-import { ALBION_ITEM_PRESETS, CITY_BONUSES } from '../data/albionPresets';
 import {
   Plus,
   Trash2,
@@ -12,18 +11,11 @@ import {
   Store,
   BookOpen,
   Zap,
-  Globe,
   Tag,
   ChevronDown,
   ChevronUp,
-  MapPin,
-  Search,
-  Filter,
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
-import { buscarPrecosAoVivo, CIDADES_ALBION, CidadeAlbion } from '../services/albionDataProjectService';
-import { RecipeCatalogModal } from './RecipeCatalogModal';
-import { ReceitaAlbion, BANCO_DE_RECEITAS_ALBION } from '../data/albionRecipesDatabase';
 
 interface CraftCalculatorProps {
   request: CraftRequestDto;
@@ -38,19 +30,6 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
   onCalculate,
   isLoading,
 }) => {
-  const [selectedCity, setSelectedCity] = useState<CidadeAlbion>('Fort Sterling');
-  const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
-  const [priceMessage, setPriceMessage] = useState<string | null>(null);
-  const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<ReceitaAlbion | null>(BANCO_DE_RECEITAS_ALBION[0]);
-
-  const handleSelectFromCatalog = (receita: ReceitaAlbion) => {
-    setSelectedRecipe(receita);
-    setRequest({ ...receita.dtoPadrao });
-    setSelectedCity(receita.cidadeBonus);
-    setPriceMessage(`Receita de "${receita.nome}" carregada! Bônus de 25% ativo em ${receita.cidadeBonus}.`);
-  };
-
   // Painéis expansíveis avançados
   const [showAdvancedSettings, setShowAdvancedSettings] = useState<boolean>(true);
 
@@ -90,232 +69,19 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     }));
   };
 
-  const applyPreset = (presetId: string) => {
-    const foundPreset = ALBION_ITEM_PRESETS.find((p) => p.id === presetId);
-    if (foundPreset) {
-      setRequest({ ...foundPreset.dto });
-      const foundInDb = BANCO_DE_RECEITAS_ALBION.find((r) => r.albionItemId === foundPreset.albionItemId);
-      if (foundInDb) {
-        setSelectedRecipe(foundInDb);
-      }
-      setPriceMessage(null);
-    }
-  };
-
-  const applyCityBonus = (taxa: number) => {
-    setRequest((prev) => ({ ...prev, taxaDeRetorno: taxa }));
-  };
-
-  // Consulta preços ao vivo na API pública do Albion Online Data Project
-  const handleFetchLivePrice = async () => {
-    setIsFetchingPrice(true);
-    setPriceMessage(null);
-
-    try {
-      const currentPreset = ALBION_ITEM_PRESETS.find(
-        (p) => p.nomeItem.toLowerCase() === request.recurso[0]?.nome?.toLowerCase() || p.dto.precoDeVenda === request.precoDeVenda
-      );
-
-      const itemId = selectedRecipe?.albionItemId || currentPreset?.albionItemId || 'T4_MAIN_SWORD';
-
-      const prices = await buscarPrecosAoVivo([itemId], selectedCity);
-
-      if (prices && prices.length > 0 && prices[0].sell_price_min > 0) {
-        const livePrice = prices[0].sell_price_min;
-        setRequest((prev) => ({ ...prev, precoDeVenda: livePrice }));
-        setPriceMessage(`Preço ao vivo em ${selectedCity}: ${livePrice.toLocaleString('pt-BR')} Pratas!`);
-      } else {
-        setPriceMessage(`Nenhuma cotação recente para ${selectedRecipe?.nome || itemId} em ${selectedCity}. Mantido o valor anterior.`);
-      }
-    } catch (err: any) {
-      setPriceMessage(`Erro ao consultar Albion Data: ${err.message}`);
-    } finally {
-      setIsFetchingPrice(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Presets Bar */}
-      <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-slate-200">
-              Receitas Populares de Albion Online
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsCatalogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Abrir Catálogo de Receitas Completo ({BANCO_DE_RECEITAS_ALBION.length} Itens)
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {ALBION_ITEM_PRESETS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => applyPreset(item.id)}
-              className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-amber-500/50 hover:bg-slate-800/50 text-left transition-all group"
-            >
-              <span className="text-xl group-hover:scale-110 transition-transform">
-                {item.icone}
-              </span>
-              <div className="overflow-hidden">
-                <div className="text-xs font-semibold text-slate-200 truncate group-hover:text-amber-400">
-                  {item.nomeItem}
-                </div>
-                <div className="text-[10px] text-slate-400">{item.tier}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Quick Dropdown Selector for all recipes */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3 pt-3 border-t border-slate-800/60">
-          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
-            <Search className="w-3.5 h-3.5 text-amber-400" />
-            Selecionar diretamente da lista completa de receitas:
-          </label>
-          <select
-            value={selectedRecipe?.id || ''}
-            onChange={(e) => {
-              const found = BANCO_DE_RECEITAS_ALBION.find((r) => r.id === e.target.value);
-              if (found) handleSelectFromCatalog(found);
-            }}
-            className="w-full sm:flex-1 bg-slate-950/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-100 font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
-          >
-            <option value="">-- Selecione uma Receita ({BANCO_DE_RECEITAS_ALBION.length} receitas cadastradas) --</option>
-            {BANCO_DE_RECEITAS_ALBION.map((rec) => (
-              <option key={rec.id} value={rec.id}>
-                {rec.tier} | {rec.nome} • Bônus em {rec.cidadeBonus} ({rec.categoria})
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => setIsCatalogOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold whitespace-nowrap flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700/60"
-          >
-            <Filter className="w-3.5 h-3.5 text-cyan-400" />
-            Catálogo com Filtros
-          </button>
-        </div>
-      </div>
-
-      {/* Banner da Receita Ativa */}
-      {selectedRecipe && (
-        <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 border border-amber-500/30 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-2xl shadow-inner">
-              {selectedRecipe.icone}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-slate-100">{selectedRecipe.nome}</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {selectedRecipe.tier}
-                </span>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-950/60 px-1.5 py-0.5 rounded">
-                  {selectedRecipe.albionItemId}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-400">
-                <span className="text-cyan-400 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-cyan-400" />
-                  Cidade Especialista: <strong className="text-cyan-300">{selectedRecipe.cidadeBonus} (25% retorno)</strong>
-                </span>
-                <span className="text-purple-400 flex items-center gap-1">
-                  <BookOpen className="w-3 h-3 text-purple-400" />
-                  Diário Recomendado: <strong className="text-purple-300">Diário de {selectedRecipe.tipoDiario}</strong>
-                </span>
-                <span className="text-slate-400">
-                  Item Value: <strong className="text-amber-400">{selectedRecipe.itemValue}</strong>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCity(selectedRecipe.cidadeBonus);
-                applyCityBonus(25);
-                setPriceMessage(`Cidade sincronizada para ${selectedRecipe.cidadeBonus} com taxa de 25%!`);
-              }}
-              className="flex-1 md:flex-none px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-700/60 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <MapPin className="w-3 h-3" />
-              Sincronizar {selectedRecipe.cidadeBonus} (25%)
-            </button>
-            <button
-              type="button"
-              onClick={handleFetchLivePrice}
-              disabled={isFetchingPrice}
-              className="flex-1 md:flex-none px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors shadow-md cursor-pointer disabled:opacity-50"
-            >
-              <Globe className="w-3 h-3" />
-              {isFetchingPrice ? 'Buscando...' : 'Cotação ao Vivo'}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Form Box */}
       <div className="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-amber-400" />
-              Parâmetros da Produção (Craft)
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Defina a quantidade de itens, taxa de retorno dos recursos e condições de venda.
-            </p>
-          </div>
-
-          {/* Botão de Preços ao Vivo do Albion Data Project */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-xs">
-              <span className="text-[11px] text-slate-400">Cidade:</span>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value as CidadeAlbion)}
-                className="bg-transparent text-cyan-400 font-bold focus:outline-none cursor-pointer text-xs"
-              >
-                {CIDADES_ALBION.map((c) => (
-                  <option key={c} value={c} className="bg-slate-900 text-slate-200">
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleFetchLivePrice}
-              disabled={isFetchingPrice}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 text-xs font-bold transition-colors cursor-pointer"
-              title="Buscar preço atual no mercado de Albion via Albion Data Project"
-            >
-              <Globe className={`w-3.5 h-3.5 ${isFetchingPrice ? 'animate-spin' : ''}`} />
-              {isFetchingPrice ? 'Consultando...' : 'Preço ao Vivo (API)'}
-            </button>
-          </div>
+        <div className="border-b border-slate-800/80 pb-4">
+          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-amber-400" />
+            Parâmetros da Produção (Craft)
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Defina a quantidade de itens, taxa de retorno dos recursos e condições de venda.
+          </p>
         </div>
-
-        {priceMessage && (
-          <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-800/60 text-xs text-cyan-300 flex items-center justify-between">
-            <span>{priceMessage}</span>
-            <button onClick={() => setPriceMessage(null)} className="text-slate-500 hover:text-slate-300">
-              ✕
-            </button>
-          </div>
-        )}
 
         {/* 3 Columns: Quantidade, Taxa de Retorno, Preço de Venda */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -395,21 +161,26 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center text-slate-100 font-bold"
               />
             </div>
-            {/* Quick city presets */}
+            {/* Atalhos rápidos de taxa de retorno */}
             <div className="flex flex-wrap gap-1 pt-1">
-              {CITY_BONUSES.map((cb, idx) => (
+              {[
+                { taxa: 0, label: '0% (Sem Retorno)' },
+                { taxa: 15.2, label: '15.2% (Base)' },
+                { taxa: 24.8, label: '24.8% (Bônus)' },
+                { taxa: 47.9, label: '47.9% (Com Foco)' },
+                { taxa: 53.9, label: '53.9% (Hideout)' },
+              ].map((p, idx) => (
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => applyCityBonus(cb.taxaSemFoco)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                    request.taxaDeRetorno === cb.taxaSemFoco
+                  onClick={() => setRequest((prev) => ({ ...prev, taxaDeRetorno: p.taxa }))}
+                  className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                    request.taxaDeRetorno === p.taxa
                       ? 'bg-cyan-500 text-slate-950 font-bold border-cyan-400'
                       : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200'
                   }`}
-                  title={cb.descricao}
                 >
-                  {cb.taxaSemFoco}% ({cb.cidade.split('/')[0].trim()})
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -600,7 +371,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-[10px] text-slate-400 block mb-1">Preço da Loja:</span>
+                    <span className="text-[10px] text-slate-400 block mb-1">Preço da Loja (p/ 100 Nutrição):</span>
                     <input
                       type="number"
                       min="0"
@@ -608,15 +379,15 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       value={request.taxaEstacaoPorCemNutricao ?? 0}
                       onChange={(e) =>
                         setRequest((prev) => ({
-                          ...prev,
-                          taxaEstacaoPorCemNutricao: Math.max(0, parseFloat(e.target.value) || 0),
+                           ...prev,
+                           taxaEstacaoPorCemNutricao: Math.max(0, parseFloat(e.target.value) || 0),
                         }))
                       }
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none"
                     />
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block mb-1">Item Value:</span>
+                    <span className="text-[10px] text-slate-400 block mb-1">Item Value (Valor Base):</span>
                     <input
                       type="number"
                       min="0"
@@ -630,6 +401,46 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       }
                       className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-bold focus:outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Atalhos rápidos de taxa de barraca */}
+                <div className="pt-1 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>Atalhos rápidos de taxa:</span>
+                    <span className="text-amber-400 font-semibold">
+                      {((request.taxaEstacaoPorCemNutricao ?? 0) === 0) ? (
+                        '⚠️ Taxa zerada (Sem custo de loja)'
+                      ) : (
+                        `Custo: ~${Math.round((((request.itemValue || 480) * 0.1125 * (request.quantidadeParaProducao || 1)) / 100.0) * (request.taxaEstacaoPorCemNutricao || 0)).toLocaleString('pt-BR')} 🪙`
+                      )}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 text-[11px]">
+                    {[
+                      { label: 'Ilha (0)', valor: 0 },
+                      { label: 'Baixa (400)', valor: 400 },
+                      { label: 'Média (600)', valor: 600 },
+                      { label: 'Alta (850)', valor: 850 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() =>
+                          setRequest((prev) => ({
+                            ...prev,
+                            taxaEstacaoPorCemNutricao: preset.valor,
+                          }))
+                        }
+                        className={`px-1.5 py-1 rounded text-center font-medium transition-all ${
+                          request.taxaEstacaoPorCemNutricao === preset.valor
+                            ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                            : 'bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -946,13 +757,6 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Modal de Catálogo Completo de Receitas */}
-      <RecipeCatalogModal
-        isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
-        onSelectRecipe={handleSelectFromCatalog}
-      />
     </div>
   );
 };

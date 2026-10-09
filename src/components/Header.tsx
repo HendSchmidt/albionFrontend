@@ -2,8 +2,8 @@ import React from 'react';
 import { Sparkles, Shield, Coins, BookOpen, Terminal, Calculator } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'calculator' | 'api' | 'java';
-  setActiveTab: (tab: 'calculator' | 'api' | 'java') => void;
+  activeTab: 'calculator' | 'api';
+  setActiveTab: (tab: 'calculator' | 'api') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
@@ -55,18 +55,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
             >
               <Terminal className="w-3.5 h-3.5" />
               API Test (JSON)
-            </button>
-
-            <button
-              onClick={() => setActiveTab('java')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'java'
-                  ? 'bg-indigo-500 text-white font-semibold shadow-md shadow-indigo-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              Código Java Spring Boot
             </button>
           </div>
         </div>

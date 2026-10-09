@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { CraftCalculator } from './components/CraftCalculator';
 import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
-import { JavaCodeViewer } from './components/JavaCodeViewer';
 import { CraftRequestDto, CraftResponseDto, DetalhesCalculo } from './types/albion';
 import { ALBION_ITEM_PRESETS } from './data/albionPresets';
 import {
@@ -15,7 +14,7 @@ import {
 import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'calculator' | 'api' | 'java'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'api'>('calculator');
 
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
@@ -224,8 +223,6 @@ export default function App() {
         )}
 
         {activeTab === 'api' && <ApiTester currentRequest={request} />}
-
-        {activeTab === 'java' && <JavaCodeViewer />}
       </main>
 
       <footer className="border-t border-slate-900 bg-slate-950/80 py-6 mt-12 text-center text-xs text-slate-500">
