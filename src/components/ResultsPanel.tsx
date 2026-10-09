@@ -11,8 +11,6 @@ import {
   BookOpen,
   Zap,
   Tag,
-  CheckCircle2,
-  AlertTriangle,
   Layers,
   UtensilsCrossed,
   FlaskConical,
@@ -56,25 +54,25 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
     switch (cat.toUpperCase()) {
       case 'CULINARIA':
         return {
-          nome: 'Culinária (1 clique = 10 comidas)',
+          nome: 'Culinária (1 quantidade = 10 comidas)',
           icon: <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />,
           cor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
         };
       case 'ALQUIMIA':
         return {
-          nome: 'Alquimia (1 clique = 5 poções)',
+          nome: 'Alquimia (1 quantidade = 5 poções)',
           icon: <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />,
           cor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
         };
       case 'REFINO':
         return {
-          nome: 'Refino (1 clique = 1 material)',
+          nome: 'Refino (1 quantidade = 1 material)',
           icon: <Trees className="w-3.5 h-3.5 text-cyan-400" />,
           cor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
         };
       default:
         return {
-          nome: 'Equipamento (1 clique = 1 item)',
+          nome: 'Equipamento (1 quantidade = 1 item)',
           icon: <Shield className="w-3.5 h-3.5 text-purple-400" />,
           cor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
         };
@@ -102,7 +100,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {quantidadeProducao} clique(s) executado(s) × {rendimento} un/clique ={' '}
+              {quantidadeProducao}x quantidade × {rendimento} un/quantidade ={' '}
               <strong className="text-emerald-400 font-extrabold">{totalItens} unidades finais produzidas</strong>
             </p>
           </div>
@@ -409,8 +407,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
             Ao fabricar com a taxa de retorno configurada, os recursos retornados voltam
-            diretamente para a sua bolsa após o craft, reduzindo substancialmente o seu
-            custo efetivo de produção e aumentando o lucro líquido por ciclo.
+            diretamente para a sua bolsa após a produção, reduzindo substancialmente o seu
+            custo efetivo e aumentando o lucro líquido por ciclo.
           </p>
           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>Total retornado para sua bolsa:</span>
@@ -439,7 +437,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                   })}{' '}
                   Pratas
                 </strong>{' '}
-                neste lote!
+                nesta quantidade!
               </>
             ) : (
               <>
@@ -449,7 +447,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
                   {detalhes.valorTaxaMercado.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                   })}{' '}
-                  Pratas (12%)                </strong>{' '}
+                  Pratas (12%)
+                </strong>{' '}
                 de taxa no mercado. Ative a conta premium para reduzir a taxa para 6%.
               </>
             )}
@@ -458,7 +457,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
             <span>Economia com Conta Premium:</span>
             <span className="font-bold text-amber-400">
               +{detalhes.economiaPremium.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{' '}
-              Pratas por lote
+              Pratas nesta quantidade
             </span>
           </div>
         </div>

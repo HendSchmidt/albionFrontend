@@ -52,7 +52,7 @@ const CATEGORIAS_LOTE: CategoriaConfig[] = [
     nome: 'Culinária (Comidas)',
     icone: <UtensilsCrossed className="w-4 h-4 text-amber-400" />,
     rendimentoPadrao: 10,
-    regraTexto: '1 clique = 10 unidades',
+    regraTexto: '1 quantidade = 10 unidades',
     exemplos: 'Sopas, Saladas, Tortas, Guisados, Sanduíches e Omeletes',
     calculoExplicacao: 'O custo total dos ingredientes é dividido por 10 para apurar o custo unitário de cada comida.',
     badgeCor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
@@ -64,9 +64,9 @@ const CATEGORIAS_LOTE: CategoriaConfig[] = [
     nome: 'Alquimia (Poções & Bebidas)',
     icone: <FlaskConical className="w-4 h-4 text-emerald-400" />,
     rendimentoPadrao: 5,
-    regraTexto: '1 clique = 5 unidades',
+    regraTexto: '1 quantidade = 5 unidades',
     exemplos: 'Poções de Cura, Resistência, Veneno, Invisibilidade e Goró de Batata',
-    calculoExplicacao: 'O custo dos materiais de 1 clique é dividido por 5 para apurar o valor unitário de cada frasco.',
+    calculoExplicacao: 'O custo dos materiais de 1 quantidade é dividido por 5 para apurar o valor unitário de cada frasco.',
     badgeCor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     bgAtivo: 'bg-gradient-to-br from-emerald-950/60 via-slate-900 to-slate-900',
     bordaAtiva: 'border-emerald-500/60 shadow-lg shadow-emerald-950/30',
@@ -76,7 +76,7 @@ const CATEGORIAS_LOTE: CategoriaConfig[] = [
     nome: 'Refino de Recursos',
     icone: <Trees className="w-4 h-4 text-cyan-400" />,
     rendimentoPadrao: 1,
-    regraTexto: '1 clique = 1 unidade',
+    regraTexto: '1 quantidade = 1 unidade',
     exemplos: 'Barras de Metal, Tábuas de Madeira, Couros e Tecidos',
     calculoExplicacao: 'Consome matéria-prima bruta gerando 1 material refinado. O custo diminui puramente pela TRR da cidade.',
     badgeCor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
@@ -88,9 +88,9 @@ const CATEGORIAS_LOTE: CategoriaConfig[] = [
     nome: 'Equipamentos (Armas & Armaduras)',
     icone: <Shield className="w-4 h-4 text-purple-400" />,
     rendimentoPadrao: 1,
-    regraTexto: '1 clique = 1 unidade',
+    regraTexto: '1 quantidade = 1 unidade',
     exemplos: 'Armas, Armaduras, Capas, Bolsas e Ferramentas',
-    calculoExplicacao: 'Cada clique gera 1 único equipamento com rolamento aleatório de Qualidade (Bom a Obra-Prima).',
+    calculoExplicacao: 'Cada quantidade produzida gera 1 único equipamento com rolamento aleatório de Qualidade (Bom a Obra-Prima).',
     badgeCor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     bgAtivo: 'bg-gradient-to-br from-purple-950/60 via-slate-900 to-slate-900',
     bordaAtiva: 'border-purple-500/60 shadow-lg shadow-purple-950/30',
@@ -165,14 +165,14 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     }));
   };
 
-  // Cálculo prévio de custo de insumos do clique para exibir na interface
-  const custoInsumosClique = request.recurso.reduce(
+  // Cálculo prévio de custo de insumos por quantidade para exibir na interface
+  const custoInsumosQuantidade = request.recurso.reduce(
     (acc, r) => acc + (r.quantidade || 0) * (r.valor || 0),
     0
   );
   const taxaRetornoAliquota = (request.taxaDeRetorno || 0) / 100;
-  const custoInsumosCorrigidoClique = custoInsumosClique * (1 - taxaRetornoAliquota);
-  const custoInsumosPorUnidadeFinal = rendimentoAtual > 0 ? custoInsumosCorrigidoClique / rendimentoAtual : 0;
+  const custoInsumosCorrigidoQuantidade = custoInsumosQuantidade * (1 - taxaRetornoAliquota);
+  const custoInsumosPorUnidadeFinal = rendimentoAtual > 0 ? custoInsumosCorrigidoQuantidade / rendimentoAtual : 0;
 
   return (
     <div className="space-y-6">
@@ -183,16 +183,16 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-amber-400" />
-                Parâmetros de Fabricação & Rendimento por Clique
+                Parâmetros de Fabricação & Rendimento por Quantidade
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Configure a categoria da receita (Culinária 10x, Alquimia 5x, Refino/Equipamento 1x), cliques e taxas.
+                Configure a categoria da receita (Culinária 10x, Alquimia 5x, Refino/Equipamento 1x), quantidade e taxas.
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
               <Layers className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-slate-300 font-semibold">
-                Rendimento: <strong className="text-amber-300">{rendimentoAtual} un / clique</strong>
+                Rendimento: <strong className="text-amber-300">{rendimentoAtual} un / quantidade</strong>
               </span>
             </div>
           </div>
@@ -209,8 +209,8 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             </div>
             <Tooltip
               title="Resumo dos Lotes de Fabricação no Albion"
-              content="Cada categoria no Albion possui seu rendimento por clique: Culinária entrega 10 comidas por clique; Alquimia entrega 5 poções por clique; Refino e Equipamentos entregam 1 unidade por clique. Essa regra é essencial para apurar o custo unitário e saber se haverá lucro real na venda!"
-              formula="Unidades Finais = Cliques × Rendimento por Clique"
+              content="Cada categoria no Albion possui seu rendimento por quantidade: Culinária entrega 10 comidas por quantidade de receita; Alquimia entrega 5 poções; Refino e Equipamentos entregam 1 unidade. Essa regra é essencial para apurar o custo unitário e saber se haverá lucro real na venda!"
+              formula="Unidades Finais = Quantidade × Rendimento"
             >
               <span className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 cursor-pointer">
                 <HelpCircle className="w-3.5 h-3.5" />
@@ -249,7 +249,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                   <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
                     <span className="text-slate-400">Rendimento:</span>
                     <span className="font-bold text-amber-300">
-                      {cat.rendimentoPadrao} un / clique
+                      {cat.rendimentoPadrao} un / quantidade
                     </span>
                   </div>
                 </div>
@@ -261,9 +261,9 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
             <div className="flex items-center gap-2 text-xs text-slate-300">
               <Sliders className="w-3.5 h-3.5 text-amber-400" />
-              <span>Multiplicador de rendimento por clique:</span>
+              <span>Multiplicador de rendimento por quantidade:</span>
               <span className="text-xs font-bold text-amber-300">
-                {rendimentoAtual} un geradas por 1 clique
+                {rendimentoAtual} un geradas por 1 quantidade
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -282,26 +282,26 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 }
                 className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center text-amber-300 font-extrabold focus:outline-none focus:border-amber-500"
               />
-              <span className="text-xs text-slate-400">un/clique</span>
+              <span className="text-xs text-slate-400">un/quantidade</span>
             </div>
           </div>
         </div>
 
-        {/* 2. Três Colunas: Cliques, Taxa de Retorno, Preço de Venda Unitário */}
+        {/* 2. Três Colunas: Quantidade de Fabricação, Taxa de Retorno, Preço de Venda Unitário */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Quantidade de Cliques (Receitas) */}
+          {/* Quantidade de Fabricação */}
           <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
             <div className="flex items-center justify-between">
               <Tooltip
-                title="Quantidade de Cliques / Bateladas de Receita"
-                content="Quantidade de vezes que você aperta 'Fabricar' na estação. Em Culinária, 1 clique consome os insumos da receita e devolve 10 comidas prontas. Em Alquimia, devolve 5 frascos. Em Refino e Equipamentos, devolve 1 item."
-                formula="Itens Finais = Cliques × Rendimento por Clique"
+                title="Quantidade para Produção"
+                content="Quantidade de produções que serão fabricadas nesta ordem. Em Culinária, cada 1 quantidade de produção consome os insumos da receita e gera 10 comidas prontas. Em Alquimia, gera 5 frascos. Em Refino e Equipamentos, gera 1 item."
+                formula="Itens Finais = Quantidade × Rendimento"
               >
                 <label className="text-xs font-semibold text-slate-300">
-                  Cliques de Fabricação
+                  Quantidade de Fabricação
                 </label>
               </Tooltip>
-              <span className="text-[10px] text-slate-400">Receitas executadas</span>
+              <span className="text-[10px] text-slate-400">Quantidade de produção</span>
             </div>
             <input
               type="number"
@@ -319,7 +319,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             <div className="pt-1.5 flex items-center justify-between text-[11px] bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
               <span className="text-slate-400">Total gerado:</span>
               <span className="text-amber-400 font-extrabold flex items-center gap-1">
-                <span>{request.quantidadeParaProducao || 1} clique(s) × {rendimentoAtual}</span>
+                <span>{request.quantidadeParaProducao || 1}x quantidade × {rendimentoAtual}</span>
                 <span className="text-slate-500">=</span>
                 <span className="text-emerald-400">{totalUnidadesGeradas} itens</span>
               </span>
@@ -331,7 +331,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             <div className="flex items-center justify-between">
               <Tooltip
                 title="Taxa de Retorno (Resource Return Rate - TRR)"
-                content="Percentual de recursos devolvidos à sua bolsa logo após o craft. Bônus em cidades com especialização oferecem 24.8% ou 15.2%, podendo ultrapassar 47.9% com Foco de Produção ou 53.9% em Esconderijos (Hideouts) de alto nível."
+                content="Percentual de recursos devolvidos à sua bolsa logo após a fabricação. Bônus em cidades com especialização oferecem 24.8% ou 15.2%, podendo ultrapassar 47.9% com Foco de Produção ou 53.9% em Esconderijos (Hideouts) de alto nível."
                 formula="Retorno = Quantidade Total × (Taxa de Retorno / 100)"
               >
                 <label className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
@@ -571,8 +571,8 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 <div className="flex items-center justify-between">
                   <Tooltip
                     title="Taxa da Loja na Cidade (Nutrition Fee)"
-                    content="Taxa que o dono da barraca na cidade real cobra por 100 de nutrição gasta. A fórmula oficial é: Nutrição = Item Value × 0.1125 × Cliques. Custo = (Nutrição / 100) × Taxa."
-                    formula="(Item Value × 0.1125 × Cliques / 100) × Taxa"
+                    content="Taxa que o dono da barraca na cidade real cobra por 100 de nutrição gasta. A fórmula oficial é: Nutrição = Item Value × 0.1125 × Quantidade. Custo = (Nutrição / 100) × Taxa."
+                    formula="(Item Value × 0.1125 × Quantidade / 100) × Taxa"
                   >
                     <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
                       <Store className="w-3.5 h-3.5" />
@@ -650,8 +650,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                             : 'bg-slate-950/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
                         }`}
                       >
-                        {preset.label}
-                      </button>
+                        {preset.label}                      </button>
                     ))}
                   </div>
                 </div>
@@ -781,20 +780,20 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
           )}
         </div>
 
-        {/* 5. Tabela de Recursos Necessários por Clique */}
+        {/* 5. Tabela de Recursos Necessários por Quantidade */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-slate-200">
-                  Lista de Insumos da Receita (por 1 clique de fabricação)
+                  Lista de Insumos da Receita (por 1 quantidade de fabricação)
                 </h3>
                 <span className="text-[11px] bg-slate-800 text-amber-300 px-2 py-0.5 rounded font-semibold border border-slate-700">
                   Rende {rendimentoAtual} un
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Informe os ingredientes necessários na tela do jogo para 1 clique. A quantidade será multiplicada pelo número de cliques ({request.quantidadeParaProducao}x).
+                Informe os ingredientes necessários na tela do jogo para 1 quantidade. A quantidade de insumos será multiplicada pela quantidade total ({request.quantidadeParaProducao}x).
               </p>
             </div>
             <button
@@ -821,19 +820,19 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                   </th>
                   <th className="px-4 py-3">
                     <Tooltip
-                      title="Quantidade por 1 Clique"
-                      content="Quantidade individual deste material exigida na receita do jogo para executar 1 clique."
+                      title="Quantidade por 1 Receita"
+                      content="Quantidade individual deste material exigida na receita do jogo para produzir 1 quantidade."
                     >
-                      <span>Qtd / 1 Clique</span>
+                      <span>Qtd / 1 Quantidade</span>
                     </Tooltip>
                   </th>
                   <th className="px-4 py-3">
                     <Tooltip
                       title="Quantidade Total Bruta no Inventário"
-                      content="Total de materiais necessários no seu inventário para iniciar a fabricação do lote completo de cliques."
-                      formula="Qtd / Clique × Quantidade de Cliques"
+                      content="Total de materiais necessários no seu inventário para iniciar a fabricação da quantidade completa."
+                      formula="Qtd / Quantidade × Quantidade Total"
                     >
-                      <span>Total ({request.quantidadeParaProducao} cliques)</span>
+                      <span>Total ({request.quantidadeParaProducao}x quantidade)</span>
                     </Tooltip>
                   </th>
                   <th className="px-4 py-3">
@@ -896,7 +895,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       <td className="px-4 py-2.5 text-slate-300 font-semibold">
                         <Tooltip
                           title={`Total Bruto de ${rec.nome}`}
-                          content={`Para executar ${request.quantidadeParaProducao}x clique(s), você precisa ter inicialmente ${totalBruto} un na mochila.`}
+                          content={`Para executar ${request.quantidadeParaProducao}x quantidade(s), você precisa ter inicialmente ${totalBruto} un na mochila.`}
                           formula={`${rec.quantidade} × ${request.quantidadeParaProducao} = ${totalBruto} un`}
                         >
                           <span className="cursor-help underline decoration-dotted decoration-slate-600">
@@ -964,12 +963,12 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             <div className="flex items-center gap-2 text-slate-300">
               <Info className="w-4 h-4 text-cyan-400 shrink-0" />
               <span>
-                Custo de insumos por 1 clique (com {request.taxaDeRetorno}% TRR):{' '}
-                <strong className="text-amber-300">{Math.round(custoInsumosCorrigidoClique).toLocaleString('pt-BR')} 🪙</strong>
+                Custo de insumos por 1 quantidade (com {request.taxaDeRetorno}% TRR):{' '}
+                <strong className="text-amber-300">{Math.round(custoInsumosCorrigidoQuantidade).toLocaleString('pt-BR')} 🪙</strong>
               </span>
             </div>
             <div className="text-slate-300 font-semibold bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
-              <span>Custo de materiais por unidade final ({rendimentoAtual} un/clique): </span>
+              <span>Custo de materiais por unidade final ({rendimentoAtual} un/quantidade): </span>
               <strong className="text-emerald-400">
                 ~{custoInsumosPorUnidadeFinal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 🪙 cada
               </strong>

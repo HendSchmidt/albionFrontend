@@ -11,7 +11,7 @@ import {
   FoodNutritionSaleRequestDto,
   FoodNutritionSaleResponseDto,
 } from './types/albion';
-import { ALBION_ITEM_PRESETS, ItemPreset } from './data/albionPresets';
+import { ALBION_ITEM_PRESETS } from './data/albionPresets';
 import { ALBION_FOOD_PRESETS } from './data/albionFoodPresets';
 import {
   chamarSpringBoot,
@@ -21,7 +21,7 @@ import {
   DEFAULT_SPRING_BOOT_URL,
   ResultadoCalculo,
 } from './services/albionService';
-import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings, Sparkles } from 'lucide-react';
+import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('food');
@@ -29,9 +29,6 @@ export default function App() {
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
   const [showUrlSettings, setShowUrlSettings] = useState<boolean>(false);
-
-  // Preset ativo
-  const [selectedPresetId, setSelectedPresetId] = useState<string>(ALBION_ITEM_PRESETS[0].id);
 
   // Initial state using first Albion preset (Guisado de Carne T8 - Culinária 10x)
   const [request, setRequest] = useState<CraftRequestDto>(() => ({
@@ -166,14 +163,6 @@ export default function App() {
     }
   };
 
-  const handleApplyPreset = (preset: ItemPreset) => {
-    setSelectedPresetId(preset.id);
-    setRequest({
-      ...preset.dto,
-      recurso: preset.dto.recurso.map((r) => ({ ...r })),
-    });
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -241,8 +230,7 @@ export default function App() {
         </div>
 
         {/* URL Settings Drawer */}
-        {showUrlSettings && (
-          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
+        {showUrlSettings && (          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
               <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-cyan-400" />
@@ -299,38 +287,6 @@ export default function App() {
         {/* TAB 2: CALCULADORA GERAL DE CRAFT */}
         {activeTab === 'calculator' && (
           <div className="space-y-8">
-            {/* Atalhos de Receitas para Testar as Categorias de Lote */}
-            <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Carregar Exemplos Prontos por Categoria de Lote:</span>
-                </div>
-                <span className="text-[11px] text-slate-500">Clique para carregar receita e regra de lote</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {ALBION_ITEM_PRESETS.map((preset) => {
-                  const isSelected = selectedPresetId === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
-                        isSelected
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-sm'
-                          : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      <span>{preset.icone}</span>
-                      <span>{preset.nomeItem}</span>
-                      <span className="text-[10px] opacity-75 font-mono">({preset.rendimentoPadrao} un/clique)</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <CraftCalculator
               request={request}
               setRequest={setRequest}
