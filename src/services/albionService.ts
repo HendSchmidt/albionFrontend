@@ -1,4 +1,11 @@
-import { CraftRequestDto, CraftResponseDto, DetalhesCalculo, RecursoResponseDto } from '../types/albion';
+import {
+  CraftRequestDto,
+  CraftResponseDto,
+  DetalhesCalculo,
+  RecursoResponseDto,
+  FoodNutritionSaleRequestDto,
+  FoodNutritionSaleResponseDto,
+} from '../types/albion';
 
 export const DEFAULT_SPRING_BOOT_URL = 'http://localhost:8080/calculaViabilidadePorRecurso';
 
@@ -18,7 +25,6 @@ export async function chamarSpringBoot(
   backendUrl: string = DEFAULT_SPRING_BOOT_URL
 ): Promise<ResultadoCalculo> {
   const inicio = performance.now();
-
   try {
     let res: Response;
     try {
@@ -51,7 +57,6 @@ export async function chamarSpringBoot(
 
     const craftResponse: CraftResponseDto = await res.json();
     const duracaoMs = Math.round(performance.now() - inicio);
-
     const detalhes = gerarDetalhesAnaliticos(request, craftResponse);
 
     return {
@@ -76,7 +81,13 @@ export function gerarDetalhesAnaliticos(
   request: CraftRequestDto,
   response: CraftResponseDto
 ): DetalhesCalculo {
-  const quantidadeProducao = Math.max(1, request.quantidadeParaProducao || 1);
+  const quantidadeCliques = Math.max(1, request.quantidadeParaProducao || 1);
+  const rendimento = request.rendimentoPorClique && request.rendimentoPorClique > 0
+    ? request.rendimentoPorClique
+    : (response.rendimentoPorClique || 1);
+  const totalItensProduzidos = response.totalItensProduzidos ?? (quantidadeCliques * rendimento);
+  const categoriaProducao = response.categoriaProducao ?? (request.categoriaProducao || (rendimento === 10 ? 'CULINARIA' : (rendimento === 5 ? 'ALQUIMIA' : 'EQUIPAMENTO')));
+
   const taxaRetorno = (request.taxaDeRetorno || 0) / 100.0;
   const fatorConsumo = Math.max(0, 1.0 - taxaRetorno);
 
@@ -85,7 +96,7 @@ export function gerarDetalhesAnaliticos(
   const qtdConsumoMap: { [nome: string]: number } = {};
 
   (request.recurso || []).forEach((rec) => {
-    const qtdTotal = rec.quantidade * quantidadeProducao;
+    const qtdTotal = rec.quantidade * quantidadeCliques;
     const qtdRetornada = qtdTotal * taxaRetorno;
     const qtdConsumida = qtdTotal * fatorConsumo;
 
@@ -95,8 +106,8 @@ export function gerarDetalhesAnaliticos(
   });
 
   const precoVenda = request.precoDeVenda || 0;
-  const receitaBruta = Math.round(precoVenda * quantidadeProducao * 100) / 100;
-
+  // Receita bruta é baseada no total de itens finais produzidos no lote
+  const receitaBruta = Math.round(precoVenda * totalItensProduzidos * 100) / 100;
   const taxaMercadoPercentual = request.contaPremium ? 6.0 : 12.0;
   const valorTaxaMercado = response.taxaVendaMercado ?? Math.round(receitaBruta * (taxaMercadoPercentual / 100.0) * 100) / 100;
 
@@ -107,14 +118,11 @@ export function gerarDetalhesAnaliticos(
   const qtdDiarios = request.quantidadeDiarios || 0;
   const precoVazio = request.precoDiarioVazio || 0;
   const precoCheio = request.precoDiarioCheio || request.valorVendaDiario || 0;
-
   const custoDiariosVazios = response.custoDiariosVazios ?? Math.round(qtdDiarios * precoVazio * 100) / 100;
 
-  // Receita líquida dos diários após taxas
   const taxaDiariosPercent = (taxaMercadoPercentual + (ehOrdemDeVenda ? 2.5 : 0)) / 100.0;
   const receitaLiquidaDiariosEstimada = Math.round((qtdDiarios * precoCheio * (1.0 - taxaDiariosPercent)) * 100) / 100;
   const receitaDiarios = response.receitaDiarios ?? receitaLiquidaDiariosEstimada;
-
   const lucroLiquidoDiarios = response.lucroLiquidoDiarios ?? Math.round((receitaDiarios - custoDiariosVazios) * 100) / 100;
   const valeAPenaDiarios = qtdDiarios > 0 && lucroLiquidoDiarios > 0;
 
@@ -125,9 +133,8 @@ export function gerarDetalhesAnaliticos(
       const itemValue = request.itemValue && request.itemValue > 0
         ? request.itemValue
         : (custoInsumosEstimado || 480);
-      const nutricao = itemValue * 0.1125 * quantidadeProducao;
+      const nutricao = itemValue * 0.1125 * quantidadeCliques;
       custoTaxaEstacao = Math.round((nutricao / 100.0) * request.taxaEstacaoPorCemNutricao * 100) / 100;
-      // Garante que o response compartilhe o mesmo valor calculado
       response.custoTaxaEstacao = custoTaxaEstacao;
     } else {
       custoTaxaEstacao = 0;
@@ -150,6 +157,14 @@ export function gerarDetalhesAnaliticos(
     ? Math.round((response.lucro / response.custoTotalDaProdcao) * 1000) / 10
     : 0;
 
+  const custoUnitarioItemFinal = response.custoUnitarioItemFinal ?? (
+    Math.round((response.custoTotalDaProdcao / totalItensProduzidos) * 100) / 100
+  );
+
+  const lucroUnitarioItemFinal = response.lucroUnitarioItemFinal ?? (
+    Math.round((response.lucro / totalItensProduzidos) * 100) / 100
+  );
+
   return {
     quantidadeInicialPorRecurso: qtdInicialMap,
     quantidadeRetornadaPorRecurso: qtdRetornoMap,
@@ -168,22 +183,39 @@ export function gerarDetalhesAnaliticos(
     roiPercentual,
     economiaPremium,
     prataPorFoco: response.prataPorFoco,
+    totalItensProduzidos,
+    rendimentoPorClique: rendimento,
+    custoUnitarioItemFinal,
+    lucroUnitarioItemFinal,
+    categoriaProducao: String(categoriaProducao),
   };
 }
 
 /**
- * Cálculo local alternativo com suporte ao ciclo de diários vazios e cheios.
+ * Cálculo local com suporte a Lotes de Fabricação (Culinária 10x, Alquimia 5x, Refino 1x, Equipamentos 1x).
  */
 export function calcularViabilidadeLocal(request: CraftRequestDto): {
   response: CraftResponseDto;
   detalhes: DetalhesCalculo;
 } {
-  const quantidadeProducao = Math.max(1, request.quantidadeParaProducao || 1);
+  const quantidadeCliques = Math.max(1, request.quantidadeParaProducao || 1);
   const taxaRetorno = (request.taxaDeRetorno || 0) / 100.0;
   const fatorConsumo = Math.max(0, 1.0 - taxaRetorno);
 
+  // Rendimento por clique do Albion Online
+  const rendimento = request.rendimentoPorClique && request.rendimentoPorClique > 0
+    ? request.rendimentoPorClique
+    : 1;
+
+  const categoria = request.categoriaProducao || (
+    rendimento === 10 ? 'CULINARIA' : (rendimento === 5 ? 'ALQUIMIA' : 'EQUIPAMENTO')
+  );
+
+  const totalItensProduzidos = quantidadeCliques * rendimento;
+
+  // Custo dos recursos consumidos por clique
   const custoPorRecurso: RecursoResponseDto[] = (request.recurso || []).map((rec) => {
-    const qtdTotal = rec.quantidade * quantidadeProducao;
+    const qtdTotal = rec.quantidade * quantidadeCliques;
     const qtdConsumida = qtdTotal * fatorConsumo;
     const valor = Math.round(qtdConsumida * (rec.valor || 0) * 100) / 100;
     return { nome: rec.nome, valor };
@@ -193,13 +225,13 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     custoPorRecurso.reduce((acc, curr) => acc + curr.valor, 0) * 100
   ) / 100;
 
-  // Taxa da estação de fabricação
+  // Taxa da estação de fabricação (Nutrition Fee) baseada na quantidade de cliques
   let custoTaxaEstacao = 0;
   if (request.taxaEstacaoPorCemNutricao && request.taxaEstacaoPorCemNutricao > 0) {
     const itemValue = request.itemValue && request.itemValue > 0
       ? request.itemValue
-      : custoInsumos / quantidadeProducao;
-    const nutricao = itemValue * 0.1125 * quantidadeProducao;
+      : custoInsumos / quantidadeCliques;
+    const nutricao = itemValue * 0.1125 * quantidadeCliques;
     custoTaxaEstacao = Math.round((nutricao / 100.0) * request.taxaEstacaoPorCemNutricao * 100) / 100;
   }
 
@@ -207,15 +239,14 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
   const qtdDiarios = request.quantidadeDiarios || 0;
   const precoVazio = request.precoDiarioVazio || 0;
   const precoCheio = request.precoDiarioCheio || request.valorVendaDiario || 0;
-
   const custoDiariosVazios = Math.round(qtdDiarios * precoVazio * 100) / 100;
   const receitaBrutaDiarios = Math.round(qtdDiarios * precoCheio * 100) / 100;
 
   // Custo Total da Produção = Insumos + Loja + Diários Vazios Comprados
   const custoTotalDaProdcao = Math.round((custoInsumos + custoTaxaEstacao + custoDiariosVazios) * 100) / 100;
 
-  // Receita bruta dos itens
-  const receitaBrutaItens = Math.round((request.precoDeVenda || 0) * quantidadeProducao * 100) / 100;
+  // Receita bruta dos itens = Preço Unitário × Total de Itens Fabricados
+  const receitaBrutaItens = Math.round((request.precoDeVenda || 0) * totalItensProduzidos * 100) / 100;
 
   // Taxas do mercado
   const taxaMercadoAliquota = request.contaPremium ? 0.06 : 0.12;
@@ -228,7 +259,6 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
   // Taxas aplicadas também sobre a venda dos diários
   const taxaVendaDiarios = Math.round(receitaBrutaDiarios * taxaMercadoAliquota * 100) / 100;
   const taxaMontagemDiarios = Math.round(receitaBrutaDiarios * taxaMontagemOrdemAliquota * 100) / 100;
-
   const receitaLiquidaDiarios = Math.round((receitaBrutaDiarios - taxaVendaDiarios - taxaMontagemDiarios) * 100) / 100;
   const lucroLiquidoDiarios = Math.round((receitaLiquidaDiarios - custoDiariosVazios) * 100) / 100;
 
@@ -240,6 +270,10 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
   ) * 100) / 100;
 
   const lucro = Math.round((receitaLiquidaTotal - custoTotalDaProdcao) * 100) / 100;
+
+  // Custo e Lucro unitários por item final gerado
+  const custoUnitarioItemFinal = Math.round((custoTotalDaProdcao / totalItensProduzidos) * 100) / 100;
+  const lucroUnitarioItemFinal = Math.round((lucro / totalItensProduzidos) * 100) / 100;
 
   let prataPorFoco = 0;
   if (request.usarFoco && request.custoFocoTotal && request.custoFocoTotal > 0) {
@@ -258,17 +292,20 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
     taxaVendaMercado: taxaVendaTotal,
     receitaLiquidaTotal,
     prataPorFoco,
+    totalItensProduzidos,
+    rendimentoPorClique: rendimento,
+    custoUnitarioItemFinal,
+    lucroUnitarioItemFinal,
+    categoriaProducao: String(categoria),
   };
 
   const detalhes = gerarDetalhesAnaliticos(request, response);
-
   return { response, detalhes };
 }
 
 // ---------------------------------------------------------------------------------
 // Funções para Cálculo de Nutrição e Venda em Barraquinhas de Albion Online
 // ---------------------------------------------------------------------------------
-import { FoodNutritionSaleRequestDto, FoodNutritionSaleResponseDto } from '../types/albion';
 
 /**
  * Cálculo local determinístico para venda de comida em barraquinha.
@@ -278,7 +315,6 @@ export function calcularNutricaoLocal(
 ): FoodNutritionSaleResponseDto {
   const nutricaoBase = request.nutricaoPorUnidade || 0;
   const nutricaoEfetiva = request.comidaFavorita ? nutricaoBase * 2 : nutricaoBase;
-
   const valorPorCem = request.valorPorCemNutricao || 0;
   const valorPagoPorUnidade = Math.round((nutricaoEfetiva / 100) * valorPorCem * 100) / 100;
 
@@ -306,11 +342,10 @@ export function calcularNutricaoLocal(
   const taxaMercadoPercentual = request.contaPremium
     ? (request.ordemDeVenda ? 6.5 : 4.0)
     : (request.ordemDeVenda ? 10.5 : 8.0);
-
   const aliquotaTaxa = taxaMercadoPercentual / 100;
+
   const precoLiquidoMercadoUnitario = Math.round(precoMercadoUnitario * (1 - aliquotaTaxa) * 100) / 100;
   const receitaLiquidaTotalMercado = Math.round(precoLiquidoMercadoUnitario * qtdTotal * 100) / 100;
-
   const lucroTotalMercado = Math.round((receitaLiquidaTotalMercado - custoProducaoTotal) * 100) / 100;
   const lucroUnitarioMercado = Math.round((precoLiquidoMercadoUnitario - custoProducaoPorUnidade) * 100) / 100;
 
@@ -363,7 +398,6 @@ export async function chamarSpringBootNutricao(
 ): Promise<{ response: FoodNutritionSaleResponseDto; isSpringBoot: boolean; duracaoMs?: number }> {
   const endpoint = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '') + '/calculaVendaComidaBarraquinha';
   const inicio = performance.now();
-
   try {
     const res = await fetch(endpoint, {
       method: 'POST',

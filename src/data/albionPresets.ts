@@ -7,6 +7,8 @@ export interface ItemPreset {
   tier: string;
   categoria: string;
   icone: string;
+  rendimentoPadrao: number;
+  categoriaLote: 'CULINARIA' | 'ALQUIMIA' | 'REFINO' | 'EQUIPAMENTO';
   dto: CraftRequestDto;
 }
 
@@ -19,23 +21,153 @@ export interface CityBonusPreset {
 }
 
 export const ALBION_ITEM_PRESETS: ItemPreset[] = [
+  // CULINÁRIA (1 clique = 10 unidades)
+  {
+    id: 'guisado-carne-t8',
+    albionItemId: 'T8_MEAL_STEW',
+    nomeItem: 'Guisado de Carne T8 (Beef Stew)',
+    tier: 'T8',
+    categoria: 'Culinária (Comidas)',
+    icone: '🍲',
+    rendimentoPadrao: 10,
+    categoriaLote: 'CULINARIA',
+    dto: {
+      quantidadeParaProducao: 1, // 1 clique gera 10 guisados
+      taxaDeRetorno: 15.2,
+      precoDeVenda: 1400,        // Preço por unidade no mercado
+      contaPremium: true,
+      categoriaProducao: 'CULINARIA',
+      rendimentoPorClique: 10,
+      taxaEstacaoPorCemNutricao: 600,
+      itemValue: 120,
+      quantidadeDiarios: 0,
+      precoDiarioVazio: 0,
+      precoDiarioCheio: 0,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 0,
+      recurso: [
+        { nome: 'Carne Crua T8', quantidade: 8, valor: 850 },
+        { nome: 'Pão de Trigo', quantidade: 4, valor: 420 },
+      ],
+    },
+  },
+  {
+    id: 'sopa-repolho-t5',
+    albionItemId: 'T5_MEAL_SOUP',
+    nomeItem: 'Sopa de Repolho T5',
+    tier: 'T5',
+    categoria: 'Culinária (Comidas)',
+    icone: '🥣',
+    rendimentoPadrao: 10,
+    categoriaLote: 'CULINARIA',
+    dto: {
+      quantidadeParaProducao: 2, // 2 cliques = 20 sopas
+      taxaDeRetorno: 24.8,
+      precoDeVenda: 1400,
+      contaPremium: true,
+      categoriaProducao: 'CULINARIA',
+      rendimentoPorClique: 10,
+      taxaEstacaoPorCemNutricao: 400,
+      itemValue: 48,
+      quantidadeDiarios: 0,
+      precoDiarioVazio: 0,
+      precoDiarioCheio: 0,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 0,
+      recurso: [
+        { nome: 'Repolho T5', quantidade: 16, valor: 380 },
+      ],
+    },
+  },
+
+  // ALQUIMIA (1 clique = 5 unidades)
+  {
+    id: 'pocao-cura-t6',
+    albionItemId: 'T6_POTION_HEAL',
+    nomeItem: 'Poção de Cura Maior T6',
+    tier: 'T6',
+    categoria: 'Alquimia (Poções)',
+    icone: '🧪',
+    rendimentoPadrao: 5,
+    categoriaLote: 'ALQUIMIA',
+    dto: {
+      quantidadeParaProducao: 1, // 1 clique = 5 poções
+      taxaDeRetorno: 15.2,
+      precoDeVenda: 2800,
+      contaPremium: true,
+      categoriaProducao: 'ALQUIMIA',
+      rendimentoPorClique: 5,
+      taxaEstacaoPorCemNutricao: 500,
+      itemValue: 96,
+      quantidadeDiarios: 0,
+      precoDiarioVazio: 0,
+      precoDiarioCheio: 0,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 0,
+      recurso: [
+        { nome: 'Dedaleira Branca T6', quantidade: 24, valor: 280 },
+        { nome: 'Leite de Cabra', quantidade: 6, valor: 320 },
+      ],
+    },
+  },
+
+  // REFINO DE RECURSOS (1 clique = 1 unidade)
+  {
+    id: 'barra-aco-t4',
+    albionItemId: 'T4_METALBAR',
+    nomeItem: 'Barra de Aço T4',
+    tier: 'T4',
+    categoria: 'Refino de Recursos',
+    icone: '🪵',
+    rendimentoPadrao: 1,
+    categoriaLote: 'REFINO',
+    dto: {
+      quantidadeParaProducao: 50, // 50 barras refinadas
+      taxaDeRetorno: 36.7,        // Bônus de refino em Thetford / Caerleon
+      precoDeVenda: 240,
+      contaPremium: true,
+      categoriaProducao: 'REFINO',
+      rendimentoPorClique: 1,
+      taxaEstacaoPorCemNutricao: 500,
+      itemValue: 32,
+      quantidadeDiarios: 0,
+      precoDiarioVazio: 0,
+      precoDiarioCheio: 0,
+      ordemDeVenda: true,
+      usarFoco: false,
+      custoFocoTotal: 0,
+      recurso: [
+        { nome: 'Minério de Ferro T4', quantidade: 2, valor: 85 },
+        { nome: 'Barra de Bronze T3', quantidade: 1, valor: 70 },
+      ],
+    },
+  },
+
+  // EQUIPAMENTOS (1 clique = 1 unidade)
   {
     id: 'espada-larga-t4',
     albionItemId: 'T4_MAIN_SWORD',
     nomeItem: 'Espada Larga T4 (Broadsword)',
     tier: 'T4',
-    categoria: 'Armas de Guerreiro',
+    categoria: 'Equipamentos (Armas)',
     icone: '⚔️',
+    rendimentoPadrao: 1,
+    categoriaLote: 'EQUIPAMENTO',
     dto: {
       quantidadeParaProducao: 5,
       taxaDeRetorno: 25,
       precoDeVenda: 6200,
       contaPremium: true,
+      categoriaProducao: 'EQUIPAMENTO',
+      rendimentoPorClique: 1,
       taxaEstacaoPorCemNutricao: 600,
       itemValue: 480,
       quantidadeDiarios: 2,
-      precoDiarioVazio: 1200, // Preço de compra do diário T4 vazio
-      precoDiarioCheio: 4500, // Preço de venda do diário T4 cheio
+      precoDiarioVazio: 1200,
+      precoDiarioCheio: 4500,
       ordemDeVenda: true,
       usarFoco: false,
       custoFocoTotal: 1200,
@@ -50,18 +182,22 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
     albionItemId: 'T5_ARMOR_LEATHER_SET1',
     nomeItem: 'Casaco de Mercenário T5',
     tier: 'T5',
-    categoria: 'Armaduras de Caçador',
+    categoria: 'Equipamentos (Armaduras)',
     icone: '🥋',
+    rendimentoPadrao: 1,
+    categoriaLote: 'EQUIPAMENTO',
     dto: {
       quantidadeParaProducao: 10,
       taxaDeRetorno: 25,
       precoDeVenda: 18500,
       contaPremium: true,
+      categoriaProducao: 'EQUIPAMENTO',
+      rendimentoPorClique: 1,
       taxaEstacaoPorCemNutricao: 700,
       itemValue: 960,
       quantidadeDiarios: 3,
-      precoDiarioVazio: 2100, // Preço de compra do diário T5 vazio
-      precoDiarioCheio: 8200, // Preço de venda do diário T5 cheio
+      precoDiarioVazio: 2100,
+      precoDiarioCheio: 8200,
       ordemDeVenda: true,
       usarFoco: false,
       custoFocoTotal: 2500,
@@ -75,18 +211,22 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
     albionItemId: 'T6_2H_WARBOW',
     nomeItem: 'Arco de Guerra T6 (Warbow)',
     tier: 'T6',
-    categoria: 'Armas de Caçador',
+    categoria: 'Equipamentos (Armas)',
     icone: '🏹',
+    rendimentoPadrao: 1,
+    categoriaLote: 'EQUIPAMENTO',
     dto: {
       quantidadeParaProducao: 4,
       taxaDeRetorno: 48,
       precoDeVenda: 75000,
       contaPremium: true,
+      categoriaProducao: 'EQUIPAMENTO',
+      rendimentoPorClique: 1,
       taxaEstacaoPorCemNutricao: 800,
       itemValue: 1920,
       quantidadeDiarios: 2,
-      precoDiarioVazio: 3500, // Preço de compra do diário T6 vazio
-      precoDiarioCheio: 18000, // Preço de venda do diário T6 cheio
+      precoDiarioVazio: 3500,
+      precoDiarioCheio: 18000,
       ordemDeVenda: true,
       usarFoco: true,
       custoFocoTotal: 1800,
@@ -100,13 +240,17 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
     albionItemId: 'T5_2H_FIRESTAFF',
     nomeItem: 'Cajado de Fogo T5 (Fire Staff)',
     tier: 'T5',
-    categoria: 'Armas de Mago',
+    categoria: 'Equipamentos (Armas)',
     icone: '🔥',
+    rendimentoPadrao: 1,
+    categoriaLote: 'EQUIPAMENTO',
     dto: {
       quantidadeParaProducao: 8,
       taxaDeRetorno: 15,
       precoDeVenda: 22000,
       contaPremium: false,
+      categoriaProducao: 'EQUIPAMENTO',
+      rendimentoPorClique: 1,
       taxaEstacaoPorCemNutricao: 650,
       itemValue: 960,
       quantidadeDiarios: 2,
@@ -118,58 +262,6 @@ export const ALBION_ITEM_PRESETS: ItemPreset[] = [
       recurso: [
         { nome: 'Tábuas T5', quantidade: 16, valor: 780 },
         { nome: 'Barra de Titânio T5', quantidade: 8, valor: 820 },
-      ],
-    },
-  },
-  {
-    id: 'bolsa-t4',
-    albionItemId: 'T4_BAG',
-    nomeItem: 'Bolsa de Aventureiro T4',
-    tier: 'T4',
-    categoria: 'Acessórios',
-    icone: '🎒',
-    dto: {
-      quantidadeParaProducao: 20,
-      taxaDeRetorno: 15,
-      precoDeVenda: 3900,
-      contaPremium: true,
-      taxaEstacaoPorCemNutricao: 500,
-      itemValue: 240,
-      quantidadeDiarios: 4,
-      precoDiarioVazio: 900,
-      precoDiarioCheio: 3400,
-      ordemDeVenda: true,
-      usarFoco: false,
-      custoFocoTotal: 800,
-      recurso: [
-        { nome: 'Couro T4', quantidade: 4, valor: 190 },
-        { nome: 'Tecido T4', quantidade: 4, valor: 185 },
-      ],
-    },
-  },
-  {
-    id: 'machado-batalha-t7',
-    albionItemId: 'T7_MAIN_AXE',
-    nomeItem: 'Machado de Batalha T7',
-    tier: 'T7',
-    categoria: 'Armas de Guerreiro',
-    icone: '🪓',
-    dto: {
-      quantidadeParaProducao: 2,
-      taxaDeRetorno: 48,
-      precoDeVenda: 190000,
-      contaPremium: true,
-      taxaEstacaoPorCemNutricao: 1000,
-      itemValue: 3840,
-      quantidadeDiarios: 1,
-      precoDiarioVazio: 6000,
-      precoDiarioCheio: 35000,
-      ordemDeVenda: true,
-      usarFoco: true,
-      custoFocoTotal: 2200,
-      recurso: [
-        { nome: 'Barra de Meteoro T7', quantidade: 12, valor: 5800 },
-        { nome: 'Tábuas T7', quantidade: 12, valor: 5400 },
       ],
     },
   },
@@ -195,7 +287,7 @@ export const CITY_BONUSES: CityBonusPreset[] = [
     cidade: 'Martlock / Fort Sterling / Lymhurst / Thetford / Bridgewatch',
     taxaSemFoco: 25,
     taxaComFoco: 48,
-    descricao: 'Bônus regional da cidade específica (ex: Fort Sterling para Martelos/Elmos)',
+    descricao: 'Bônus regional da cidade específica (ex: Caerleon para Culinária/Poções)',
   },
   {
     nome: 'Esconderijo nas Terras Distantes (Hideout Nível 6)',
