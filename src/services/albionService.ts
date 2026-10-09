@@ -118,7 +118,21 @@ export function gerarDetalhesAnaliticos(
   const lucroLiquidoDiarios = response.lucroLiquidoDiarios ?? Math.round((receitaDiarios - custoDiariosVazios) * 100) / 100;
   const valeAPenaDiarios = qtdDiarios > 0 && lucroLiquidoDiarios > 0;
 
-  const custoTaxaEstacao = response.custoTaxaEstacao ?? 0;
+  let custoTaxaEstacao = response.custoTaxaEstacao;
+  if (custoTaxaEstacao === undefined || custoTaxaEstacao === null || custoTaxaEstacao === 0) {
+    if (request.taxaEstacaoPorCemNutricao && request.taxaEstacaoPorCemNutricao > 0) {
+      const custoInsumosEstimado = (request.recurso || []).reduce((acc, r) => acc + (r.quantidade * (r.valor || 0)), 0);
+      const itemValue = request.itemValue && request.itemValue > 0
+        ? request.itemValue
+        : (custoInsumosEstimado || 480);
+      const nutricao = itemValue * 0.1125 * quantidadeProducao;
+      custoTaxaEstacao = Math.round((nutricao / 100.0) * request.taxaEstacaoPorCemNutricao * 100) / 100;
+      // Garante que o response compartilhe o mesmo valor calculado
+      response.custoTaxaEstacao = custoTaxaEstacao;
+    } else {
+      custoTaxaEstacao = 0;
+    }
+  }
 
   const receitaLiquida = response.receitaLiquidaTotal ?? (
     Math.round((receitaBruta - valorTaxaMercado - taxaMontagemOrdem + receitaDiarios) * 100) / 100

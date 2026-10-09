@@ -11,14 +11,12 @@ Frontend interativo para cálculo de viabilidade econômica, consumo de insumos 
   - Presets de itens populares de Albion (Espadas, Casacos, Arcos, Machados, Cajados, Bolsas).
   - Presets de bônus regionais de cidades reais (15%, 25%, 48% com foco, etc.).
 - **Regras Econômicas Exatas:**
-  - **Taxa de Retorno de Recursos (RRR):** Devolução real dos materiais para a bolsa do jogador, calculando o consumo líquido efetivo.
+  - **Taxa de Retorno de Recursos (RRR):** Atalhos rápidos e diretos de percentual (0% sem retorno, 15.2%, 24.8%, 47.9%, 53.9%).
   - **Conta Premium:** Simulação com 6% de taxa no mercado (com Conta Premium) vs. 12% de taxa (sem Conta Premium - 6% de economia).
   - Cálculo de Custo Total (`custoTotalDaProdcao`), Custo por Recurso (`custoPorRecurso`) e Lucro Líquido (`lucro`).
 - **Testador de API (JSON):**
   - Editor em tempo real para disparar requisições `POST /calculaViabilidadePorRecurso` diretamente contra a API local (porta 8080) ou API embutida.
   - Visualizador de status HTTP, tempo de resposta e comando `curl` gerado dinamicamente.
-- **Visualizador de Código Java Spring Boot:**
-  - Aba com visualização e cópia dos códigos do Service (`CalculaViabilidadeDeProdcao.java`), Controller (`ProjecaoDeFaturamentoController.java`), DTOs e testes unitários.
 
 ---
 
