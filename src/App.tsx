@@ -167,7 +167,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} onOpenSavedRecipes={() => setIsSavedRecipesModalOpen(true)} />
 
       {/* Backend Spring Boot Connection Status Bar */}
       <div className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-sm">
@@ -294,6 +294,7 @@ export default function App() {
               setRequest={setRequest}
               onCalculate={handleManualCalculate}
               isLoading={backendStatus === 'LOADING'}
+              onOpenSavedRecipes={() => setIsSavedRecipesModalOpen(true)}
             />
 
             <div className="flex items-center justify-between text-xs px-2 text-slate-400">

@@ -1,12 +1,13 @@
 import React from 'react';
-import { Coins, Terminal, Calculator, UtensilsCrossed } from 'lucide-react';
+import { Coins, Terminal, Calculator, UtensilsCrossed, FolderOpen } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'calculator' | 'food' | 'api';
   setActiveTab: (tab: 'calculator' | 'food' | 'api') => void;
+  onOpenSavedRecipes?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onOpenSavedRecipes }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
