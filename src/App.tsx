@@ -12,7 +12,6 @@ import {
   FoodNutritionSaleRequestDto,
   FoodNutritionSaleResponseDto,
 } from './types/albion';
-import { ALBION_ITEM_PRESETS } from './data/albionPresets';
 import { ALBION_FOOD_PRESETS } from './data/albionFoodPresets';
 import {
   chamarSpringBoot,
