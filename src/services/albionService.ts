@@ -5,6 +5,7 @@ import {
   RecursoResponseDto,
   FoodNutritionSaleRequestDto,
   FoodNutritionSaleResponseDto,
+  ItemSalvoDto,
 } from '../types/albion';
 
 export const DEFAULT_SPRING_BOOT_URL = 'http://localhost:8080/calculaViabilidadePorRecurso';
@@ -419,4 +420,190 @@ export async function chamarSpringBootNutricao(
 
   // Fallback
   return { response: calcularNutricaoLocal(request), isSpringBoot: false };
+}
+
+
+// ----------------------------------------------------------------------------------
+// Funções de Persistência H2 (com Fallback automático em LocalStorage)
+// ----------------------------------------------------------------------------------
+
+const LOCAL_STORAGE_SAVED_RECIPES_KEY = 'albion_recipes_h2_local_fallback';
+
+function getLocalFallbackRecipes(): ItemSalvoDto[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_SAVED_RECIPES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLocalFallbackRecipe(item: ItemSalvoDto): void {
+  try {
+    const list = getLocalFallbackRecipes();
+    list.unshift(item);
+    localStorage.setItem(LOCAL_STORAGE_SAVED_RECIPES_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.error('Erro ao salvar localmente no storage', e);
+  }
+}
+
+function deleteLocalFallbackRecipe(id: number): void {
+  try {
+    const list = getLocalFallbackRecipes().filter((r) => r.id !== id);
+    localStorage.setItem(LOCAL_STORAGE_SAVED_RECIPES_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.error('Erro ao remover localmente do storage', e);
+  }
+}
+
+/**
+ * Salva a receita no banco de dados H2 do backend Spring Boot (ou fallback local).
+ */
+export async function salvarItemFabricado(
+  request: CraftRequestDto,
+  baseUrl: string = DEFAULT_SPRING_BOOT_URL
+): Promise<ItemSalvoDto> {
+  const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
+  const targetEndpoints = [
+    urlBase + '/albionApi/itensFabricados',
+    urlBase + '/itensFabricados',
+    '/api/proxy-itens-fabricados',
+  ];
+
+  // Adequa o payload para os nomes esperados pelo backend Spring Boot
+  const backendPayload = {
+    recurso: request.recurso,
+    quantidade: request.quantidadeParaProducao,
+    taxaRetorno: request.taxaDeRetorno,
+    valorVenda: request.precoDeVenda,
+    contaPremium: request.contaPremium,
+    taxaEstacaoPorCemNutricao: request.taxaEstacaoPorCemNutricao,
+    itemValue: request.itemValue,
+    quantidadeDiarios: request.quantidadeDiarios,
+    valorCompraDiarioVazio: request.precoDiarioVazio,
+    valorVendaDiarioCheio: request.precoDiarioCheio,
+    valorVendaDiario: request.valorVendaDiario,
+    vendaInstantanea: request.ordemDeVenda === false,
+    usoFoco: request.usarFoco,
+    pontosFoco: request.custoFocoTotal,
+    rendimentoPorClique: request.rendimentoPorClique || 1,
+    categoriaProducao: String(request.categoriaProducao || 'CULINARIA'),
+    nomeItem: (request as any).nomeItem || 'Receita Customizada',
+  };
+
+  for (const endpoint of targetEndpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(backendPayload),
+      });
+
+      if (res.ok) {
+        const salvo: ItemSalvoDto = await res.json();
+        saveLocalFallbackRecipe(salvo);
+        return salvo;
+      }
+    } catch (_err) {
+      // Continua para o próximo endpoint
+    }
+  }
+
+  // Fallback local caso o backend não esteja respondendo
+  const novoSalvo: ItemSalvoDto = {
+    id: Date.now(),
+    nomeItem: (request as any).nomeItem || 'Receita Customizada',
+    categoriaProducao: String(request.categoriaProducao || 'CULINARIA'),
+    rendimentoPorClique: request.rendimentoPorClique || 1,
+    quantidadeCliques: request.quantidadeParaProducao || 1,
+    taxaRetorno: request.taxaDeRetorno,
+    precoVendaUnitario: request.precoDeVenda,
+    contaPremium: request.contaPremium,
+    taxaEstacaoPorCemNutricao: request.taxaEstacaoPorCemNutricao,
+    itemValue: request.itemValue,
+    quantidadeDiarios: request.quantidadeDiarios,
+    valorCompraDiarioVazio: request.precoDiarioVazio,
+    valorVendaDiarioCheio: request.precoDiarioCheio,
+    vendaInstantanea: request.ordemDeVenda === false,
+    usoFoco: request.usarFoco,
+    pontosFoco: request.custoFocoTotal,
+    dataCriacao: new Date().toISOString(),
+    ingredientes: (request.recurso || []).map((r) => ({
+      nome: r.nome,
+      quantidade: r.quantidade,
+      valor: r.valor,
+    })),
+  };
+
+  saveLocalFallbackRecipe(novoSalvo);
+  return novoSalvo;
+}
+
+/**
+ * Busca receitas salvas no banco de dados H2 (ou fallback local).
+ */
+export async function buscarItensFabricados(
+  termo?: string,
+  baseUrl: string = DEFAULT_SPRING_BOOT_URL
+): Promise<ItemSalvoDto[]> {
+  const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
+  const queryParam = termo && termo.trim() ? ('?busca=' + encodeURIComponent(termo.trim())) : '';
+
+  const targetEndpoints = [
+    urlBase + '/albionApi/itensFabricados' + queryParam,
+    urlBase + '/itensFabricados' + queryParam,
+    '/api/proxy-itens-fabricados' + queryParam,
+  ];
+
+  for (const endpoint of targetEndpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+
+      if (res.ok) {
+        const lista: ItemSalvoDto[] = await res.json();
+        return lista;
+      }
+    } catch (_err) {
+      // Continua para o próximo endpoint
+    }
+  }
+
+  const locais = getLocalFallbackRecipes();
+  if (termo && termo.trim()) {
+    const t = termo.trim().toLowerCase();
+    return locais.filter((item) => item.nomeItem.toLowerCase().includes(t));
+  }
+  return locais;
+}
+
+/**
+ * Remove uma receita do banco de dados H2.
+ */
+export async function deletarItemFabricado(
+  id: number,
+  baseUrl: string = DEFAULT_SPRING_BOOT_URL
+): Promise<void> {
+  const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
+  const targetEndpoints = [
+    urlBase + '/albionApi/itensFabricados/' + id,
+    urlBase + '/itensFabricados/' + id,
+    '/api/proxy-itens-fabricados/' + id,
+  ];
+
+  deleteLocalFallbackRecipe(id);
+
+  for (const endpoint of targetEndpoints) {
+    try {
+      await fetch(endpoint, { method: 'DELETE' });
+    } catch (_err) {
+      // Ignora se o backend estiver offline
+    }
+  }
 }

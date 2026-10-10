@@ -4,6 +4,7 @@ import { CraftCalculator } from './components/CraftCalculator';
 import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
 import { FoodNutritionCalculator } from './components/FoodNutritionCalculator';
+import { SavedRecipesModal } from './components/SavedRecipesModal';
 import {
   CraftRequestDto,
   CraftResponseDto,
@@ -25,6 +26,7 @@ import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings }
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('calculator');
+  const [isSavedRecipesModalOpen, setIsSavedRecipesModalOpen] = useState<boolean>(false);
 
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
@@ -335,6 +337,18 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Modal de Busca e Seleção de Receitas Salvas no H2 */}
+      <SavedRecipesModal
+        isOpen={isSavedRecipesModalOpen}
+        onClose={() => setIsSavedRecipesModalOpen(false)}
+        onSelectRecipe={(rec) => {
+          setRequest({
+            ...rec,
+          });
+          setActiveTab('calculator');
+        }}
+      />
     </div>
   );
 }
