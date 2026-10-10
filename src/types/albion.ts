@@ -132,3 +132,29 @@ export interface FoodPreset {
   ingredientesBase: RecursoRequestDto[];
   rendimentoPorClique: number;
 }
+
+// -------------------------------------------------------------
+// Tipos para persistência em Banco de Dados H2:
+// -------------------------------------------------------------
+export interface ItemSalvoDto {
+  id: number;
+  nomeItem: string;
+  categoriaProducao: string;
+  rendimentoPorClique: number;
+  quantidadeCliques: number;
+  taxaRetorno: number;
+  precoVendaUnitario: number;
+  contaPremium: boolean;
+  taxaEstacaoPorCemNutricao?: number;
+  itemValue?: number;
+  quantidadeDiarios?: number;
+  valorCompraDiarioVazio?: number;
+  valorVendaDiarioCheio?: number;
+  vendaInstantanea?: boolean;
+  usoFoco?: boolean;
+  pontosFoco?: number;
+  custoTotalEstimado?: number;
+  lucroEstimado?: number;
+  dataCriacao?: string;
+  ingredientes: RecursoRequestDto[];
+}

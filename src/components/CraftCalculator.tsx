@@ -23,7 +23,11 @@ import {
   HelpCircle,
   Package,
   Info,
+  Save,
+  FolderOpen,
+  CheckCircle,
 } from 'lucide-react';
+import { salvarItemFabricado } from '../services/albionService';
 import { Tooltip } from './Tooltip';
 
 interface CraftCalculatorProps {
@@ -31,6 +35,7 @@ interface CraftCalculatorProps {
   setRequest: React.Dispatch<React.SetStateAction<CraftRequestDto>>;
   onCalculate: () => void;
   isLoading: boolean;
+  onOpenSavedRecipes?: () => void;
 }
 
 interface CategoriaConfig {
@@ -102,7 +107,35 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
   setRequest,
   onCalculate,
   isLoading,
+  onOpenSavedRecipes,
 }) => {
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
+  const [nomeItemInput, setNomeItemInput] = useState<string>('Guisado de Carne T8');
+
+  const handleSaveRecipe = async () => {
+    setIsSaving(true);
+    setSaveSuccessMsg(null);
+    setSaveErrorMsg(null);
+    try {
+      const payload: CraftRequestDto = {
+        ...request,
+        quantidadeParaProducao: request.quantidadeParaProducao || 1,
+        taxaDeRetorno: request.taxaDeRetorno ?? 15,
+      };
+      (payload as any).nomeItem = nomeItemInput || 'Receita Customizada';
+      const saved = await salvarItemFabricado(payload);
+      setSaveSuccessMsg(`Receita "${saved.nomeItem}" salva com sucesso no banco H2!`);
+      setTimeout(() => setSaveSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setSaveErrorMsg(err?.message || 'Falha ao salvar receita no banco H2.');
+      setTimeout(() => setSaveErrorMsg(null), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   // Painéis expansíveis avançados
   const [showAdvancedSettings, setShowAdvancedSettings] = useState<boolean>(true);
 
@@ -178,8 +211,8 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     <div className="space-y-6">
       {/* Box Principal de Configuração */}
       <div className="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-6">
-        <div className="border-b border-slate-800/80 pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="border-b border-slate-800/80 pb-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-amber-400" />
@@ -189,13 +222,67 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                 Configure a categoria da receita (Culinária 10x, Alquimia 5x, Refino/Equipamento 1x), quantidade e taxas.
               </p>
             </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
-              <Layers className="w-4 h-4 text-amber-400" />
-              <span className="text-xs text-slate-300 font-semibold">
-                Rendimento: <strong className="text-amber-300">{rendimentoAtual} un / quantidade</strong>
-              </span>
+            
+            {/* Botões de Ação com o Banco H2: Buscar e Salvar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {onOpenSavedRecipes && (
+                <button
+                  type="button"
+                  onClick={onOpenSavedRecipes}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition shadow-sm hover:border-slate-600 cursor-pointer"
+                  title="Buscar receitas gravadas no banco H2 para reutilizar"
+                >
+                  <FolderOpen className="w-4 h-4 text-cyan-400" />
+                  <span>Buscar Receitas Salvas</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveRecipe}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition shadow-sm hover:border-amber-500/50 cursor-pointer disabled:opacity-50"
+                title="Salvar esta receita no banco de dados local H2 do projeto"
+              >
+                <Save className="w-4 h-4 text-amber-400" />
+                <span>{isSaving ? 'Salvando...' : 'Salvar no H2'}</span>
+              </button>
+              <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+                <Layers className="w-4 h-4 text-amber-400" />
+                <span className="text-xs text-slate-300 font-semibold">
+                  Rendimento: <strong className="text-amber-300">{rendimentoAtual} un / quantidade</strong>
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* Campo de Nome do Item Fabricado */}
+          <div className="flex items-center gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-300 shrink-0">
+              <Tag className="w-4 h-4 text-amber-400" />
+              Nome do Item Fabricado:
+            </div>
+            <input
+              type="text"
+              placeholder="Ex: Guisado de Carne T8, Espada Larga T4, Poção de Cura..."
+              value={nomeItemInput}
+              onChange={(e) => setNomeItemInput(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-500 placeholder-slate-500"
+            />
+          </div>
+
+          {/* Alertas de Sucesso / Erro ao Salvar */}
+          {saveSuccessMsg && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </div>
+          )}
+          {saveErrorMsg && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
+              <Info className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{saveErrorMsg}</span>
+            </div>
+          )}
         </div>
 
         {/* 1. SELETOR DE REGRAS DE LOTES DE FABRICAÇÃO NO ALBION */}

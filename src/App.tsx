@@ -4,6 +4,7 @@ import { CraftCalculator } from './components/CraftCalculator';
 import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
 import { FoodNutritionCalculator } from './components/FoodNutritionCalculator';
+import { SavedRecipesModal } from './components/SavedRecipesModal';
 import {
   CraftRequestDto,
   CraftResponseDto,
@@ -25,6 +26,7 @@ import { Server, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, Settings }
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'calculator' | 'food' | 'api'>('calculator');
+  const [isSavedRecipesModalOpen, setIsSavedRecipesModalOpen] = useState<boolean>(false);
 
   // Backend Spring Boot URL
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
@@ -165,7 +167,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} onOpenSavedRecipes={() => setIsSavedRecipesModalOpen(true)} />
 
       {/* Backend Spring Boot Connection Status Bar */}
       <div className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-sm">
@@ -292,6 +294,7 @@ export default function App() {
               setRequest={setRequest}
               onCalculate={handleManualCalculate}
               isLoading={backendStatus === 'LOADING'}
+              onOpenSavedRecipes={() => setIsSavedRecipesModalOpen(true)}
             />
 
             <div className="flex items-center justify-between text-xs px-2 text-slate-400">
@@ -335,6 +338,18 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Modal de Busca e Seleção de Receitas Salvas no H2 */}
+      <SavedRecipesModal
+        isOpen={isSavedRecipesModalOpen}
+        onClose={() => setIsSavedRecipesModalOpen(false)}
+        onSelectRecipe={(rec) => {
+          setRequest({
+            ...rec,
+          });
+          setActiveTab('calculator');
+        }}
+      />
     </div>
   );
 }
