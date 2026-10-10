@@ -159,11 +159,11 @@ export function gerarDetalhesAnaliticos(
     : 0;
 
   const custoUnitarioItemFinal = response.custoUnitarioItemFinal ?? (
-    Math.round((response.custoTotalDaProdcao / totalItensProduzidos) * 100) / 100
+    totalItensProduzidos > 0 ? Math.round((response.custoTotalDaProdcao / totalItensProduzidos) * 100) / 100 : 0
   );
 
   const lucroUnitarioItemFinal = response.lucroUnitarioItemFinal ?? (
-    Math.round((response.lucro / totalItensProduzidos) * 100) / 100
+    totalItensProduzidos > 0 ? Math.round((response.lucro / totalItensProduzidos) * 100) / 100 : 0
   );
 
   return {
@@ -273,8 +273,8 @@ export function calcularViabilidadeLocal(request: CraftRequestDto): {
   const lucro = Math.round((receitaLiquidaTotal - custoTotalDaProdcao) * 100) / 100;
 
   // Custo e Lucro unitários por item final gerado
-  const custoUnitarioItemFinal = Math.round((custoTotalDaProdcao / totalItensProduzidos) * 100) / 100;
-  const lucroUnitarioItemFinal = Math.round((lucro / totalItensProduzidos) * 100) / 100;
+  const custoUnitarioItemFinal = totalItensProduzidos > 0 ? Math.round((custoTotalDaProdcao / totalItensProduzidos) * 100) / 100 : 0;
+  const lucroUnitarioItemFinal = totalItensProduzidos > 0 ? Math.round((lucro / totalItensProduzidos) * 100) / 100 : 0;
 
   let prataPorFoco = 0;
   if (request.usarFoco && request.custoFocoTotal && request.custoFocoTotal > 0) {
