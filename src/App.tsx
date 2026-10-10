@@ -32,10 +32,30 @@ export default function App() {
   const [backendUrl, setBackendUrl] = useState<string>(DEFAULT_SPRING_BOOT_URL);
   const [showUrlSettings, setShowUrlSettings] = useState<boolean>(false);
 
-  // Initial state using first Albion preset (Guisado de Carne T8 - Culinária 10x)
+  // Initial state com todos os parâmetros zerados para o Craft Geral
   const [request, setRequest] = useState<CraftRequestDto>(() => ({
-    ...ALBION_ITEM_PRESETS[0].dto,
-    recurso: ALBION_ITEM_PRESETS[0].dto.recurso.map((r) => ({ ...r })),
+    recurso: [
+      {
+        nome: '',
+        quantidade: 0,
+        valor: 0,
+      },
+    ],
+    quantidadeParaProducao: 0,
+    taxaDeRetorno: 0,
+    precoDeVenda: 0,
+    contaPremium: false,
+    categoriaProducao: 'CULINARIA',
+    rendimentoPorClique: 10,
+    taxaEstacaoPorCemNutricao: 0,
+    itemValue: 0,
+    quantidadeDiarios: 0,
+    precoDiarioVazio: 0,
+    precoDiarioCheio: 0,
+    valorVendaDiario: 0,
+    ordemDeVenda: false,
+    usarFoco: false,
+    custoFocoTotal: 0,
   }));
 
   // Results state Craft Geral

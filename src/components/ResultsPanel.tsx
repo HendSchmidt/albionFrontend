@@ -46,8 +46,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
   // Lotes e unidades finais fabricadas
   const rendimento = response.rendimentoPorClique ?? detalhes.rendimentoPorClique ?? 1;
   const totalItens = response.totalItensProduzidos ?? detalhes.totalItensProduzidos ?? (quantidadeProducao * rendimento);
-  const custoUnitario = response.custoUnitarioItemFinal ?? detalhes.custoUnitarioItemFinal ?? (response.custoTotalDaProdcao / totalItens);
-  const lucroUnitario = response.lucroUnitarioItemFinal ?? detalhes.lucroUnitarioItemFinal ?? (response.lucro / totalItens);
+  const custoUnitario = response.custoUnitarioItemFinal ?? detalhes.custoUnitarioItemFinal ?? (totalItens > 0 ? response.custoTotalDaProdcao / totalItens : 0);
+  const lucroUnitario = response.lucroUnitarioItemFinal ?? detalhes.lucroUnitarioItemFinal ?? (totalItens > 0 ? response.lucro / totalItens : 0);
   const categoria = response.categoriaProducao ?? detalhes.categoriaProducao ?? 'EQUIPAMENTO';
 
   const getCategoriaBadge = (cat: string) => {

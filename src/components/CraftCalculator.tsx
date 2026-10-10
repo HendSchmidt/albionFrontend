@@ -26,6 +26,7 @@ import {
   Save,
   FolderOpen,
   CheckCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { salvarItemFabricado } from '../services/albionService';
 import { Tooltip } from './Tooltip';
@@ -112,7 +113,42 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
-  const [nomeItemInput, setNomeItemInput] = useState<string>('Guisado de Carne T8');
+  const [nomeItemInput, setNomeItemInput] = useState<string>(() => (request as any).nomeItem || '');
+
+  // Sincroniza o nome do item caso uma receita seja selecionada
+  React.useEffect(() => {
+    if ((request as any).nomeItem !== undefined) {
+      setNomeItemInput((request as any).nomeItem || '');
+    }
+  }, [(request as any).nomeItem]);
+
+  const handleResetParameters = () => {
+    setRequest({
+      recurso: [
+        {
+          nome: '',
+          quantidade: 0,
+          valor: 0,
+        },
+      ],
+      quantidadeParaProducao: 0,
+      taxaDeRetorno: 0,
+      precoDeVenda: 0,
+      contaPremium: false,
+      categoriaProducao: 'CULINARIA',
+      rendimentoPorClique: 10,
+      taxaEstacaoPorCemNutricao: 0,
+      itemValue: 0,
+      quantidadeDiarios: 0,
+      precoDiarioVazio: 0,
+      precoDiarioCheio: 0,
+      valorVendaDiario: 0,
+      ordemDeVenda: false,
+      usarFoco: false,
+      custoFocoTotal: 0,
+    });
+    setNomeItemInput('');
+  };
 
   const handleSaveRecipe = async () => {
     setIsSaving(true);
@@ -121,8 +157,8 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     try {
       const payload: CraftRequestDto = {
         ...request,
-        quantidadeParaProducao: request.quantidadeParaProducao || 1,
-        taxaDeRetorno: request.taxaDeRetorno ?? 15,
+        quantidadeParaProducao: request.quantidadeParaProducao ?? 0,
+        taxaDeRetorno: request.taxaDeRetorno ?? 0,
       };
       (payload as any).nomeItem = nomeItemInput || 'Receita Customizada';
       const saved = await salvarItemFabricado(payload);
@@ -152,7 +188,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
     ? request.rendimentoPorClique
     : 1;
 
-  const totalUnidadesGeradas = (request.quantidadeParaProducao || 1) * rendimentoAtual;
+  const totalUnidadesGeradas = (request.quantidadeParaProducao || 0) * rendimentoAtual;
 
   const handleSelectCategoria = (cat: CategoriaConfig) => {
     setRequest((prev) => ({
@@ -182,9 +218,9 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
       recurso: [
         ...prev.recurso,
         {
-          nome: `Recurso ${prev.recurso.length + 1}`,
-          quantidade: 10,
-          valor: 500,
+          nome: '',
+          quantidade: 0,
+          valor: 0,
         },
       ],
     }));
@@ -245,6 +281,15 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
               >
                 <Save className="w-4 h-4 text-amber-400" />
                 <span>{isSaving ? 'Salvando...' : 'Salvar no H2'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleResetParameters}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/80 text-xs font-bold transition shadow-sm hover:border-slate-600 cursor-pointer"
+                title="Zerar todos os parâmetros de cálculo"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                <span>Zerar Parâmetros</span>
               </button>
               <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
                 <Layers className="w-4 h-4 text-amber-400" />
@@ -392,12 +437,12 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             </div>
             <input
               type="number"
-              min="1"
+              min="0"
               value={request.quantidadeParaProducao}
               onChange={(e) =>
                 setRequest((prev) => ({
                   ...prev,
-                  quantidadeParaProducao: Math.max(1, parseInt(e.target.value) || 1),
+                  quantidadeParaProducao: Math.max(0, parseInt(e.target.value) || 0),
                 }))
               }
               className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-100 font-semibold focus:outline-none focus:border-amber-500"
@@ -406,7 +451,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
             <div className="pt-1.5 flex items-center justify-between text-[11px] bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
               <span className="text-slate-400">Total gerado:</span>
               <span className="text-amber-400 font-extrabold flex items-center gap-1">
-                <span>{request.quantidadeParaProducao || 1}x quantidade × {rendimentoAtual}</span>
+                <span>{request.quantidadeParaProducao ?? 0}x quantidade × {rendimentoAtual}</span>
                 <span className="text-slate-500">=</span>
                 <span className="text-emerald-400">{totalUnidadesGeradas} itens</span>
               </span>
@@ -691,7 +736,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       type="number"
                       min="0"
                       step="50"
-                      value={request.itemValue ?? 480}
+                      value={request.itemValue ?? 0}
                       onChange={(e) =>
                         setRequest((prev) => ({
                           ...prev,
@@ -711,7 +756,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       {((request.taxaEstacaoPorCemNutricao ?? 0) === 0) ? (
                         '⚠️ Sem custo de loja'
                       ) : (
-                        `Custo: ~${Math.round((((request.itemValue || 480) * 0.1125 * (request.quantidadeParaProducao || 1)) / 100.0) * (request.taxaEstacaoPorCemNutricao || 0)).toLocaleString('pt-BR')} 🪙`
+                        `Custo: ~${Math.round((((request.itemValue || 0) * 0.1125 * (request.quantidadeParaProducao || 0)) / 100.0) * (request.taxaEstacaoPorCemNutricao || 0)).toLocaleString('pt-BR')} 🪙`
                       )}
                     </span>
                   </div>
@@ -971,7 +1016,7 @@ export const CraftCalculator: React.FC<CraftCalculatorProps> = ({
                       <td className="px-4 py-2.5">
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           value={rec.quantidade}
                           onChange={(e) =>
                             handleResourceChange(index, 'quantidade', e.target.value)
