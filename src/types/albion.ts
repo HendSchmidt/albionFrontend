@@ -37,7 +37,8 @@ export interface RecursoResponseDto {
 
 export interface CraftResponseDto {
   custoTotalDaProdcao: number;
-  custoPorRecurso: RecursoResponseDto[];
+  custoPorRecurso?: RecursoResponseDto[];
+  custosPorRecurso?: RecursoResponseDto[]; // Nome serializado pelo Spring Boot record
   lucro: number;
   
   // Detalhamento avançado de mercado e diários:
@@ -49,6 +50,7 @@ export interface CraftResponseDto {
   taxaVendaMercado?: number;
   receitaLiquidaTotal?: number;
   prataPorFoco?: number;
+  prataPorPontoDeFoco?: number; // Nome serializado pelo Spring Boot record
 
   // Detalhes de Lote de Fabricação do Albion:
   totalItensProduzidos?: number;

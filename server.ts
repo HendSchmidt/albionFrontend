@@ -38,6 +38,7 @@ export interface RecursoResponseDto {
 export interface CraftResponseDto {
   custoTotalDaProdcao: number;
   custoPorRecurso: RecursoResponseDto[];
+  custosPorRecurso?: RecursoResponseDto[];
   lucro: number;
   custoTaxaEstacao?: number;
   receitaDiarios?: number;
@@ -47,6 +48,7 @@ export interface CraftResponseDto {
   taxaVendaMercado?: number;
   receitaLiquidaTotal?: number;
   prataPorFoco?: number;
+  prataPorPontoDeFoco?: number;
   totalItensProduzidos?: number;
   rendimentoPorClique?: number;
   custoUnitarioItemFinal?: number;
@@ -177,6 +179,7 @@ export function calculaViabilidadeDeProducao(dto: CraftRequestDto): CraftRespons
   return {
     custoTotalDaProdcao,
     custoPorRecurso,
+    custosPorRecurso: custoPorRecurso,
     lucro,
     custoTaxaEstacao,
     receitaDiarios: receitaLiquidaDiarios,
@@ -186,6 +189,7 @@ export function calculaViabilidadeDeProducao(dto: CraftRequestDto): CraftRespons
     taxaVendaMercado: taxaVendaTotal,
     receitaLiquidaTotal,
     prataPorFoco,
+    prataPorPontoDeFoco: prataPorFoco,
     totalItensProduzidos,
     rendimentoPorClique: rendimento,
     custoUnitarioItemFinal,

@@ -8,7 +8,7 @@ import {
   ItemSalvoDto,
 } from '../types/albion';
 
-export const DEFAULT_SPRING_BOOT_URL = 'http://localhost:8080/calculaViabilidadePorRecurso';
+export const DEFAULT_SPRING_BOOT_URL = 'http://localhost:8080/albionApi/projecaoFaturamento/calculaViabilidadePorRecurso';
 
 export interface ResultadoCalculo {
   response: CraftResponseDto;
@@ -19,6 +19,37 @@ export interface ResultadoCalculo {
 }
 
 /**
+ * Normaliza a resposta da API garantindo que campos como custoPorRecurso e custosPorRecurso
+ * sempre existam como Arrays e nunca causem TypeError no React.
+ */
+export function normalizarCraftResponse(raw: any): CraftResponseDto {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      custoTotalDaProdcao: 0,
+      custoPorRecurso: [],
+      custosPorRecurso: [],
+      lucro: 0,
+    };
+  }
+
+  const listaInsumos = Array.isArray(raw.custoPorRecurso)
+    ? raw.custoPorRecurso
+    : Array.isArray(raw.custosPorRecurso)
+    ? raw.custosPorRecurso
+    : [];
+
+  return {
+    ...raw,
+    custoTotalDaProdcao: Number(raw.custoTotalDaProdcao) || 0,
+    lucro: Number(raw.lucro) || 0,
+    custoPorRecurso: listaInsumos,
+    custosPorRecurso: listaInsumos,
+    prataPorFoco: raw.prataPorFoco ?? raw.prataPorPontoDeFoco ?? 0,
+    prataPorPontoDeFoco: raw.prataPorFoco ?? raw.prataPorPontoDeFoco ?? 0,
+  };
+}
+
+/**
  * Chama o backend Spring Boot real para obter o cálculo oficial das regras Java.
  */
 export async function chamarSpringBoot(
@@ -26,53 +57,97 @@ export async function chamarSpringBoot(
   backendUrl: string = DEFAULT_SPRING_BOOT_URL
 ): Promise<ResultadoCalculo> {
   const inicio = performance.now();
-  try {
-    let res: Response;
+
+  // Lista de URLs candidatas para alcançar o Spring Boot real com ou sem context-path
+  const candidateUrls: string[] = [];
+  if (backendUrl) {
+    candidateUrls.push(backendUrl);
+  }
+  if (!backendUrl.includes('/albionApi/projecaoFaturamento')) {
+    candidateUrls.push('http://localhost:8080/albionApi/projecaoFaturamento/calculaViabilidadePorRecurso');
+    candidateUrls.push('http://localhost:8080/albionApi/calculaViabilidadePorRecurso');
+    candidateUrls.push('http://localhost:8080/projecaoFaturamento/calculaViabilidadePorRecurso');
+  }
+
+  // 1. Tenta chamada direta pelo navegador (funciona em localhost com CORS habilitado)
+  for (const url of candidateUrls) {
     try {
-      res = await fetch(backendUrl, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify(request),
+        signal: AbortSignal.timeout(1200),
       });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const rawJson = await res.json();
+        const craftResponse = normalizarCraftResponse(rawJson);
+        const duracaoMs = Math.round(performance.now() - inicio);
+        const detalhes = gerarDetalhesAnaliticos(request, craftResponse);
+
+        return {
+          response: craftResponse,
+          detalhes,
+          origem: 'SPRING_BOOT',
+          duracaoMs,
+          mensagem: `Cálculo processado com sucesso pelo Spring Boot em ${duracaoMs}ms!`,
+        };
+      }
     } catch (_directErr) {
-      res = await fetch('/api/proxy-craft', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          targetUrl: backendUrl,
-          payload: request,
-        }),
-      });
+      // Tenta próxima URL ou proxy
     }
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Spring Boot retornou erro HTTP ${res.status}: ${errorText}`);
-    }
-
-    const craftResponse: CraftResponseDto = await res.json();
-    const duracaoMs = Math.round(performance.now() - inicio);
-    const detalhes = gerarDetalhesAnaliticos(request, craftResponse);
-
-    return {
-      response: craftResponse,
-      detalhes,
-      origem: 'SPRING_BOOT',
-      duracaoMs,
-      mensagem: `Cálculo processado com sucesso pelo Spring Boot em ${duracaoMs}ms!`,
-    };
-  } catch (err: any) {
-    throw new Error(
-      `Não foi possível conectar ao seu Spring Boot em "${backendUrl}". ` +
-      `Verifique se o seu projeto albionApi está rodando (ApiApplication) no IntelliJ/Eclipse na porta 8080.`
-    );
   }
+
+  // 2. Se a chamada direta falhou (ex: CORS no browser ou rodando em porta diferente), usa o proxy do servidor web
+  try {
+    const proxyRes = await fetch('/api/proxy-craft', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        targetUrl: backendUrl,
+        payload: request,
+      }),
+    });
+
+    const contentType = proxyRes.headers.get('content-type') || '';
+    if (proxyRes.ok && contentType.includes('application/json')) {
+      const rawJson = await proxyRes.json();
+      const craftResponse = normalizarCraftResponse(rawJson);
+      const duracaoMs = Math.round(performance.now() - inicio);
+      const detalhes = gerarDetalhesAnaliticos(request, craftResponse);
+      const isRealSpring = proxyRes.headers.get('x-backend-origin') === 'Spring-Boot-Java';
+
+      return {
+        response: craftResponse,
+        detalhes,
+        origem: isRealSpring ? 'SPRING_BOOT' : 'SIMULADOR_LOCAL',
+        duracaoMs,
+        mensagem: isRealSpring
+          ? `Cálculo processado com sucesso pelo Spring Boot via Proxy em ${duracaoMs}ms!`
+          : `Simulador local ativo (${duracaoMs}ms)`,
+      };
+    }
+  } catch (_proxyErr) {
+    // Fallback local
+  }
+
+  // 3. Fallback determinístico local transparente para garantir que a UI nunca quebre
+  const fallback = calcularViabilidadeLocal(request);
+  const duracaoMs = Math.round(performance.now() - inicio);
+  return {
+    response: fallback.response,
+    detalhes: fallback.detalhes,
+    origem: 'SIMULADOR_LOCAL',
+    duracaoMs,
+    mensagem: `Spring Boot offline em "${backendUrl}". Regras executadas via Simulador Local.`,
+  };
 }
 
 /**
@@ -397,25 +472,37 @@ export async function chamarSpringBootNutricao(
   request: FoodNutritionSaleRequestDto,
   baseUrl: string = DEFAULT_SPRING_BOOT_URL
 ): Promise<{ response: FoodNutritionSaleResponseDto; isSpringBoot: boolean; duracaoMs?: number }> {
-  const endpoint = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '') + '/calculaVendaComidaBarraquinha';
-  const inicio = performance.now();
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
+  const candidateUrls = [
+    baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '') + '/calculaVendaComidaBarraquinha',
+    'http://localhost:8080/albionApi/projecaoFaturamento/calculaVendaComidaBarraquinha',
+    'http://localhost:8080/albionApi/calculaVendaComidaBarraquinha',
+    'http://localhost:8080/calculaVendaComidaBarraquinha',
+    '/albionApi/projecaoFaturamento/calculaVendaComidaBarraquinha',
+    '/calculaVendaComidaBarraquinha',
+  ];
 
-    if (res.ok) {
-      const data: FoodNutritionSaleResponseDto = await res.json();
-      const duracaoMs = Math.round(performance.now() - inicio);
-      return { response: data, isSpringBoot: true, duracaoMs };
+  const inicio = performance.now();
+  for (const endpoint of candidateUrls) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(1200),
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data: FoodNutritionSaleResponseDto = await res.json();
+        const duracaoMs = Math.round(performance.now() - inicio);
+        return { response: data, isSpringBoot: true, duracaoMs };
+      }
+    } catch (_e) {
+      // Tenta próximo
     }
-  } catch (e) {
-    // Spring Boot offline
   }
 
   // Fallback
@@ -458,17 +545,21 @@ function deleteLocalFallbackRecipe(id: number): void {
 }
 
 /**
- * Salva a receita no banco de dados H2 do backend Spring Boot (ou fallback local).
+ * Salva a receita no banco de dados H2 do backend Spring Boot (ou fallback no backend).
  */
 export async function salvarItemFabricado(
   request: CraftRequestDto,
   baseUrl: string = DEFAULT_SPRING_BOOT_URL
 ): Promise<ItemSalvoDto> {
   const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
+  
+  // Prioriza endpoints do backend da aplicação que integram com Spring Boot e seeder
   const targetEndpoints = [
+    '/albionApi/itensFabricados',
+    '/itensFabricados',
+    '/api/proxy-itens-fabricados',
     urlBase + '/albionApi/itensFabricados',
     urlBase + '/itensFabricados',
-    '/api/proxy-itens-fabricados',
   ];
 
   // Adequa o payload para os nomes esperados pelo backend Spring Boot
@@ -544,7 +635,7 @@ export async function salvarItemFabricado(
 }
 
 /**
- * Busca receitas salvas no banco de dados H2 (ou fallback local).
+ * Busca receitas salvas no banco de dados H2 (ou seeder oficial do backend).
  */
 export async function buscarItensFabricados(
   termo?: string,
@@ -553,10 +644,13 @@ export async function buscarItensFabricados(
   const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
   const queryParam = termo && termo.trim() ? ('?busca=' + encodeURIComponent(termo.trim())) : '';
 
+  // Prioriza as rotas relativas do backend do app (que fazem proxy com Spring Boot ou retornam o Seeder)
   const targetEndpoints = [
+    '/albionApi/itensFabricados' + queryParam,
+    '/itensFabricados' + queryParam,
+    '/api/proxy-itens-fabricados' + queryParam,
     urlBase + '/albionApi/itensFabricados' + queryParam,
     urlBase + '/itensFabricados' + queryParam,
-    '/api/proxy-itens-fabricados' + queryParam,
   ];
 
   for (const endpoint of targetEndpoints) {
@@ -568,7 +662,14 @@ export async function buscarItensFabricados(
 
       if (res.ok) {
         const lista: ItemSalvoDto[] = await res.json();
-        return lista;
+        if (Array.isArray(lista) && lista.length > 0) {
+          // Atualiza o cache local caso o usuário fique offline
+          lista.forEach((item) => saveLocalFallbackRecipe(item));
+          return lista;
+        }
+        if (Array.isArray(lista)) {
+          return lista;
+        }
       }
     } catch (_err) {
       // Continua para o próximo endpoint
@@ -592,9 +693,11 @@ export async function deletarItemFabricado(
 ): Promise<void> {
   const urlBase = baseUrl.replace(/\/calculaViabilidadePorRecurso.*$/, '').replace(/\/albionApi.*$/, '');
   const targetEndpoints = [
+    '/albionApi/itensFabricados/' + id,
+    '/itensFabricados/' + id,
+    '/api/proxy-itens-fabricados/' + id,
     urlBase + '/albionApi/itensFabricados/' + id,
     urlBase + '/itensFabricados/' + id,
-    '/api/proxy-itens-fabricados/' + id,
   ];
 
   deleteLocalFallbackRecipe(id);

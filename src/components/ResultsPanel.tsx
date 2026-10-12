@@ -1,5 +1,5 @@
 import React from 'react';
-import { CraftResponseDto, DetalhesCalculo } from '../types/albion';
+import { CraftResponseDto, DetalhesCalculo, RecursoResponseDto } from '../types/albion';
 import {
   TrendingUp,
   TrendingDown,
@@ -32,23 +32,32 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
   quantidadeProducao,
   contaPremium,
 }) => {
-  const isLucro = response.lucro > 0;
-  const isPrejuizo = response.lucro < 0;
+  const custoTotal = response?.custoTotalDaProdcao ?? 0;
+  const lucroTotal = response?.lucro ?? 0;
+  const isLucro = lucroTotal > 0;
+  const isPrejuizo = lucroTotal < 0;
 
-  const custoEstacao = response.custoTaxaEstacao ?? detalhes.custoTaxaEstacao ?? 0;
-  const receitaDiarios = response.receitaDiarios ?? detalhes.receitaDiarios ?? 0;
-  const custoDiariosVazios = response.custoDiariosVazios ?? detalhes.custoDiariosVazios ?? 0;
-  const lucroDiarios = response.lucroLiquidoDiarios ?? detalhes.lucroLiquidoDiarios ?? (receitaDiarios - custoDiariosVazios);
-  const taxaMontagem = response.taxaMontagemOrdem ?? detalhes.taxaMontagemOrdem ?? 0;
-  const taxaVenda = response.taxaVendaMercado ?? detalhes.valorTaxaMercado ?? 0;
-  const spf = response.prataPorFoco ?? detalhes.prataPorFoco ?? 0;
+  const custoEstacao = response?.custoTaxaEstacao ?? detalhes?.custoTaxaEstacao ?? 0;
+  const receitaDiarios = response?.receitaDiarios ?? detalhes?.receitaDiarios ?? 0;
+  const custoDiariosVazios = response?.custoDiariosVazios ?? detalhes?.custoDiariosVazios ?? 0;
+  const lucroDiarios = response?.lucroLiquidoDiarios ?? detalhes?.lucroLiquidoDiarios ?? (receitaDiarios - custoDiariosVazios);
+  const taxaMontagem = response?.taxaMontagemOrdem ?? detalhes?.taxaMontagemOrdem ?? 0;
+  const taxaVenda = response?.taxaVendaMercado ?? detalhes?.valorTaxaMercado ?? 0;
+  const spf = response?.prataPorFoco ?? (response as any)?.prataPorPontoDeFoco ?? detalhes?.prataPorFoco ?? 0;
 
   // Lotes e unidades finais fabricadas
-  const rendimento = response.rendimentoPorClique ?? detalhes.rendimentoPorClique ?? 1;
-  const totalItens = response.totalItensProduzidos ?? detalhes.totalItensProduzidos ?? (quantidadeProducao * rendimento);
-  const custoUnitario = response.custoUnitarioItemFinal ?? detalhes.custoUnitarioItemFinal ?? (totalItens > 0 ? response.custoTotalDaProdcao / totalItens : 0);
-  const lucroUnitario = response.lucroUnitarioItemFinal ?? detalhes.lucroUnitarioItemFinal ?? (totalItens > 0 ? response.lucro / totalItens : 0);
-  const categoria = response.categoriaProducao ?? detalhes.categoriaProducao ?? 'EQUIPAMENTO';
+  const rendimento = response?.rendimentoPorClique ?? detalhes?.rendimentoPorClique ?? 1;
+  const totalItens = response?.totalItensProduzidos ?? detalhes?.totalItensProduzidos ?? (quantidadeProducao * rendimento);
+  const custoUnitario = response?.custoUnitarioItemFinal ?? detalhes?.custoUnitarioItemFinal ?? (totalItens > 0 ? custoTotal / totalItens : 0);
+  const lucroUnitario = response?.lucroUnitarioItemFinal ?? detalhes?.lucroUnitarioItemFinal ?? (totalItens > 0 ? lucroTotal / totalItens : 0);
+  const categoria = response?.categoriaProducao ?? detalhes?.categoriaProducao ?? 'EQUIPAMENTO';
+
+  // Garante array de insumos seguro mesmo se vier como custoPorRecurso ou custosPorRecurso
+  const listaCustos: RecursoResponseDto[] = Array.isArray(response?.custoPorRecurso)
+    ? response.custoPorRecurso
+    : Array.isArray((response as any)?.custosPorRecurso)
+    ? (response as any).custosPorRecurso
+    : [];
 
   const getCategoriaBadge = (cat: string) => {
     switch (cat.toUpperCase()) {
@@ -342,58 +351,66 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
             </p>
           </div>
           <span className="text-xs font-bold text-slate-400">
-            {response.custoPorRecurso.length} insumos
+            {listaCustos.length} {listaCustos.length === 1 ? 'insumo' : 'insumos'}
           </span>
         </div>
 
         <div className="space-y-3">
-          {response.custoPorRecurso.map((rec, idx) => {
-            const percentual =
-              response.custoTotalDaProdcao > 0
-                ? Math.round((rec.valor / response.custoTotalDaProdcao) * 100)
-                : 0;
-            const qtdConsumida = detalhes.quantidadeConsumidaPorRecurso[rec.nome] ?? 0;
-            const qtdRetornada = detalhes.quantidadeRetornadaPorRecurso[rec.nome] ?? 0;
-            const qtdInicial = detalhes.quantidadeInicialPorRecurso[rec.nome] ?? 0;
+          {listaCustos.length === 0 ? (
+            <div className="text-center py-6 text-xs text-slate-500 italic bg-slate-950/40 rounded-xl border border-slate-800/40">
+              Nenhum insumo configurado na receita no momento.
+            </div>
+          ) : (
+            listaCustos.map((rec, idx) => {
+              const valorItem = rec?.valor ?? 0;
+              const percentual =
+                custoTotal > 0
+                  ? Math.round((valorItem / custoTotal) * 100)
+                  : 0;
+              const nomeItem = rec?.nome || `Insumo ${idx + 1}`;
+              const qtdConsumida = detalhes?.quantidadeConsumidaPorRecurso?.[nomeItem] ?? 0;
+              const qtdRetornada = detalhes?.quantidadeRetornadaPorRecurso?.[nomeItem] ?? 0;
+              const qtdInicial = detalhes?.quantidadeInicialPorRecurso?.[nomeItem] ?? 0;
 
-            return (
-              <div
-                key={idx}
-                className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-200">{rec.nome}</span>
-                    <span className="text-slate-500">|</span>
-                    <span className="text-[11px] text-slate-400">
-                      Inicial: {qtdInicial} un
-                    </span>
-                    <span className="text-[11px] text-cyan-400 font-semibold">
-                      (Retornou {qtdRetornada} un)
-                    </span>
+              return (
+                <div
+                  key={idx}
+                  className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-2"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-200">{nomeItem}</span>
+                      <span className="text-slate-500">|</span>
+                      <span className="text-[11px] text-slate-400">
+                        Inicial: {qtdInicial} un
+                      </span>
+                      <span className="text-[11px] text-cyan-400 font-semibold">
+                        (Retornou {qtdRetornada} un)
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-extrabold text-amber-300 text-sm">
+                        {valorItem.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        Pratas
+                      </span>
+                      <span className="text-[10px] text-slate-400 ml-2">
+                        ({percentual}% do custo)
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-extrabold text-amber-300 text-sm">
-                      {rec.valor.toLocaleString('pt-BR', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{' '}
-                      Pratas
-                    </span>
-                    <span className="text-[10px] text-slate-400 ml-2">
-                      ({percentual}% do custo)
-                    </span>
+                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                    <div
+                      className="bg-gradient-to-r from-amber-500 to-amber-600 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${percentual}%` }}
+                    />
                   </div>
                 </div>
-                <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
-                  <div
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${percentual}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 

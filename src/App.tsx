@@ -5,6 +5,7 @@ import { ResultsPanel } from './components/ResultsPanel';
 import { ApiTester } from './components/ApiTester';
 import { FoodNutritionCalculator } from './components/FoodNutritionCalculator';
 import { SavedRecipesModal } from './components/SavedRecipesModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   CraftRequestDto,
   CraftResponseDto,
@@ -251,7 +252,8 @@ export default function App() {
         </div>
 
         {/* URL Settings Drawer */}
-        {showUrlSettings && (          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3">
+        {showUrlSettings && (
+          <div className="border-t border-slate-800 bg-slate-950/90 px-4 sm:px-6 lg:px-8 py-3 space-y-2">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
               <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-cyan-400" />
@@ -262,13 +264,36 @@ export default function App() {
                 value={backendUrl}
                 onChange={(e) => setBackendUrl(e.target.value)}
                 className="flex-1 min-w-[280px] bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500"
-                placeholder="http://localhost:8080/calculaViabilidadePorRecurso"
+                placeholder="http://localhost:8080/albionApi/projecaoFaturamento/calculaViabilidadePorRecurso"
               />
               <button
                 onClick={handleManualCalculate}
                 className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
               >
                 Testar & Salvar
+              </button>
+            </div>
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              <span className="font-semibold text-slate-400">Opções comuns do seu backend:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setBackendUrl('http://localhost:8080/albionApi/projecaoFaturamento/calculaViabilidadePorRecurso');
+                  handleManualCalculate();
+                }}
+                className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-700 font-mono cursor-pointer"
+              >
+                /albionApi/projecaoFaturamento (Recomendado)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBackendUrl('http://localhost:8080/albionApi/calculaViabilidadePorRecurso');
+                  handleManualCalculate();
+                }}
+                className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 font-mono cursor-pointer"
+              >
+                /albionApi/calculaViabilidadePorRecurso
               </button>
             </div>
           </div>
@@ -332,12 +357,17 @@ export default function App() {
               </div>
             </div>
 
-            <ResultsPanel
-              response={response}
-              detalhes={detalhes}
-              quantidadeProducao={request.quantidadeParaProducao}
-              contaPremium={request.contaPremium}
-            />
+            <ErrorBoundary
+              fallbackTitle="Instabilidade temporária nos dados do cálculo"
+              onReset={() => handleManualCalculate()}
+            >
+              <ResultsPanel
+                response={response}
+                detalhes={detalhes}
+                quantidadeProducao={request.quantidadeParaProducao}
+                contaPremium={request.contaPremium}
+              />
+            </ErrorBoundary>
           </div>
         )}
 
@@ -362,9 +392,11 @@ export default function App() {
       <SavedRecipesModal
         isOpen={isSavedRecipesModalOpen}
         onClose={() => setIsSavedRecipesModalOpen(false)}
-        onSelectRecipe={(rec) => {
+        backendUrl={backendUrl}
+        onSelectRecipe={(rec, nomeItem) => {
           setRequest({
             ...rec,
+            ...(nomeItem ? { nomeItem } : {}),
           });
           setActiveTab('calculator');
         }}

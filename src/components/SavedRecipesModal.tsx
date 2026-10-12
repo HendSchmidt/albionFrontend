@@ -14,12 +14,14 @@ import { buscarItensFabricados, deletarItemFabricado } from '../services/albionS
 interface SavedRecipesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  backendUrl: string;
   onSelectRecipe: (request: CraftRequestDto, nomeItem?: string) => void;
 }
 
 export const SavedRecipesModal: React.FC<SavedRecipesModalProps> = ({
   isOpen,
   onClose,
+  backendUrl,
   onSelectRecipe,
 }) => {
   const [recipes, setRecipes] = useState<ItemSalvoDto[]>([]);
@@ -32,7 +34,7 @@ export const SavedRecipesModal: React.FC<SavedRecipesModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const data = await buscarItensFabricados(termo);
+      const data = await buscarItensFabricados(termo, backendUrl);
       setRecipes(data);
     } catch (err) {
       console.error(err);
@@ -46,7 +48,7 @@ export const SavedRecipesModal: React.FC<SavedRecipesModalProps> = ({
     if (isOpen) {
       fetchRecipes(searchTerm);
     }
-  }, [isOpen]);
+  }, [isOpen, backendUrl]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +60,7 @@ export const SavedRecipesModal: React.FC<SavedRecipesModalProps> = ({
     if (!window.confirm('Deseja realmente excluir esta receita salva?')) return;
     setDeletingId(id);
     try {
-      await deletarItemFabricado(id);
+      await deletarItemFabricado(id, backendUrl);
       setRecipes((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       alert('Falha ao excluir a receita.');
