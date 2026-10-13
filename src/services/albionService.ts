@@ -32,11 +32,23 @@ export function normalizarCraftResponse(raw: any): CraftResponseDto {
     };
   }
 
-  const listaInsumos = Array.isArray(raw.custoPorRecurso)
-    ? raw.custoPorRecurso
-    : Array.isArray(raw.custosPorRecurso)
-    ? raw.custosPorRecurso
-    : [];
+  const listaInsumos: RecursoResponseDto[] = (
+    Array.isArray(raw.custoPorRecurso)
+      ? raw.custoPorRecurso
+      : Array.isArray(raw.custosPorRecurso)
+      ? raw.custosPorRecurso
+      : []
+  ).map((r: any) => {
+    const val = Number(r.valor !== undefined ? r.valor : r.custo) || 0;
+    return {
+      nome: r.nome || '',
+      valor: val,
+      custo: val,
+    };
+  });
+
+  const rawCat = raw.categoriaProducao ? String(raw.categoriaProducao).trim().toUpperCase() : '';
+  const categoriaNormalizada = (rawCat === 'EQUIPAMENTOS' || rawCat === 'EQUIPAMENTO') ? 'EQUIPAMENTO' : rawCat;
 
   return {
     ...raw,
@@ -44,6 +56,7 @@ export function normalizarCraftResponse(raw: any): CraftResponseDto {
     lucro: Number(raw.lucro) || 0,
     custoPorRecurso: listaInsumos,
     custosPorRecurso: listaInsumos,
+    categoriaProducao: categoriaNormalizada || raw.categoriaProducao,
     prataPorFoco: raw.prataPorFoco ?? raw.prataPorPontoDeFoco ?? 0,
     prataPorPontoDeFoco: raw.prataPorFoco ?? raw.prataPorPontoDeFoco ?? 0,
   };
@@ -69,6 +82,16 @@ export async function chamarSpringBoot(
     candidateUrls.push('http://localhost:8080/projecaoFaturamento/calculaViabilidadePorRecurso');
   }
 
+  const rawCatReq = request.categoriaProducao ? String(request.categoriaProducao).toUpperCase() : '';
+  const categoriaParaBackend = (rawCatReq === 'EQUIPAMENTO' || rawCatReq === 'EQUIPAMENTOS')
+    ? 'EQUIPAMENTOS'
+    : (request.categoriaProducao || 'CULINARIA');
+
+  const payloadFormatado = {
+    ...request,
+    categoriaProducao: categoriaParaBackend,
+  };
+
   // 1. Tenta chamada direta pelo navegador (funciona em localhost com CORS habilitado)
   for (const url of candidateUrls) {
     try {
@@ -78,7 +101,7 @@ export async function chamarSpringBoot(
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(payloadFormatado),
         signal: AbortSignal.timeout(1200),
       });
 
@@ -112,7 +135,7 @@ export async function chamarSpringBoot(
       },
       body: JSON.stringify({
         targetUrl: backendUrl,
-        payload: request,
+        payload: payloadFormatado,
       }),
     });
 
