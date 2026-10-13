@@ -33,6 +33,7 @@ export interface CraftRequestDto {
 export interface RecursoResponseDto {
   nome: string;
   valor: number;
+  custo?: number; // Compatibilidade com Spring Boot record (campo custo)
 }
 
 export interface CraftResponseDto {

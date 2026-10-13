@@ -79,6 +79,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
           icon: <Trees className="w-3.5 h-3.5 text-cyan-400" />,
           cor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
         };
+      case 'EQUIPAMENTO':
+      case 'EQUIPAMENTOS':
       default:
         return {
           nome: 'Equipamento (1 quantidade = 1 item)',
@@ -362,7 +364,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
             </div>
           ) : (
             listaCustos.map((rec, idx) => {
-              const valorItem = rec?.valor ?? 0;
+              const valorItem = Number(rec?.valor !== undefined && rec?.valor !== null ? rec.valor : (rec as any)?.custo) || 0;
               const percentual =
                 custoTotal > 0
                   ? Math.round((valorItem / custoTotal) * 100)
