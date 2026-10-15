@@ -1,68 +1,94 @@
-# Albion Craft Frontend (React + TypeScript) ⚔️🪙
+# Albion Craft Frontend (React + TypeScript + Tailwind) ⚔️🪙
 
-Frontend interativo para cálculo de viabilidade econômica, consumo de insumos com taxa de retorno e projeção de lucros de fabricação do jogo **Albion Online**, integrado à API Spring Boot [albionApi](https://github.com/HendSchmidt/albionApi).
+Frontend interativo para cálculo de viabilidade econômica de fabricação, consumo real de insumos com taxa de retorno (RRR), nutrição da barraca da cidade, diários de artesão e projeção de lucros no jogo **Albion Online**.
 
----
-
-## 🚀 Funcionalidades
-
-- **Simulador de Craft Completo:**
-  - Configuração de receitas com múltiplos insumos, quantidades e preços unitários em Prata.
-  - Presets de itens populares de Albion (Espadas, Casacos, Arcos, Machados, Cajados, Bolsas).
-  - Presets de bônus regionais de cidades reais (15%, 25%, 48% com foco, etc.).
-- **Regras Econômicas Exatas:**
-  - **Taxa de Retorno de Recursos (RRR):** Atalhos rápidos e diretos de percentual (0% sem retorno, 15.2%, 24.8%, 47.9%, 53.9%).
-  - **Conta Premium:** Simulação com 6% de taxa no mercado (com Conta Premium) vs. 12% de taxa (sem Conta Premium - 6% de economia).
-  - Cálculo de Custo Total (`custoTotalDaProdcao`), Custo por Recurso (`custoPorRecurso`) e Lucro Líquido (`lucro`).
-- **Testador de API (JSON):**
-  - Editor em tempo real para disparar requisições `POST /calculaViabilidadePorRecurso` diretamente contra a API local (porta 8080) ou API embutida.
-  - Visualizador de status HTTP, tempo de resposta e comando `curl` gerado dinamicamente.
+Totalmente integrado à API Spring Boot [albionApi](https://github.com/HendSchmidt/albionApi).
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## 📋 Pré-requisitos
 
-- **React 19**
-- **TypeScript**
-- **Tailwind CSS v4**
-- **Vite**
-- **Lucide Icons**
-- **Express / Node.js** (backend BFF para proxy e API local)
+Antes de iniciar, certifique-se de possuir instalado em seu computador:
+
+- **Node.js 18** ou superior (recomendado Node 20 LTS - verifique com `node -v`)
+- **npm** (incluso com Node.js - verifique com `npm -v`)
+- **Git** (verifique com `git --version`)
+- *(Opcional)* O backend [albionApi](https://github.com/HendSchmidt/albionApi) rodando em `http://localhost:8080`. Se o backend não estiver rodando, o frontend possui motor de cálculo simulador local automático como fallback.
 
 ---
 
-## 📦 Como Executar Localmente
+## 🚀 Como Executar em Ambiente Local
 
 ### 1. Clonar o repositório
+
 ```bash
 git clone https://github.com/HendSchmidt/albionFrontend.git
 cd albionFrontend
 ```
 
 ### 2. Instalar as dependências
+
 ```bash
 npm install
 ```
 
 ### 3. Iniciar o servidor de desenvolvimento
+
 ```bash
 npm run dev
 ```
 
-A aplicação estará disponível em `http://localhost:3000`.
+A aplicação estará disponível em seu navegador no endereço:
+👉 **[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## 🔌 Integração com o Backend Spring Boot (`albionApi`)
+## 🛠️ Scripts Disponíveis
 
-Para conectar o frontend diretamente à sua API Spring Boot:
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o servidor local de desenvolvimento (Express + Vite na porta 3000) |
+| `npm run build` | Gera o build de produção otimizado na pasta `dist/` |
+| `npm run preview` | Executa o preview do build local gerado |
+| `npm run lint` | Executa a verificação estática de tipos com o TypeScript (`tsc --noEmit`) |
+| `npm run clean` | Remove os arquivos de build temporários |
 
-1. Inicie a API Spring Boot [albionApi](https://github.com/HendSchmidt/albionApi) na porta padrão `8080`.
-2. No frontend, acesse a aba **"API Test (JSON)"**.
-3. Selecione **"Meu Backend Spring Boot Local (porta 8080)"**.
-4. Clique em **"Enviar Request"** para disparar o cálculo diretamente para o seu `ProjecaoDeFaturamentoController`.
+---
+
+## 🔌 Conexão com o Backend Spring Boot (`albionApi`)
+
+O frontend foi desenhado para se comunicar de forma transparente com o backend Spring Boot em **`http://localhost:8080`**:
+
+1. Inicie a API Spring Boot [albionApi](https://github.com/HendSchmidt/albionApi):
+   ```bash
+   # Na pasta do backend albionApi
+   ./mvnw clean spring-boot:run
+   ```
+2. Abra o frontend em `http://localhost:3000`.
+3. No cabeçalho da aplicação, o indicador de status exibirá se a conexão com o Spring Boot está ativa.
+4. **Configuração de URL:** Você pode clicar no ícone de engrenagem / configurações de URL no topo para alternar rapidamente entre os endpoints suportados:
+   - `http://localhost:8080/calculaViabilidadePorRecurso`
+   - `http://localhost:8080/projecaoFaturamento/calculaViabilidadePorRecurso`
+   - `http://localhost:8080/albionApi/projecaoFaturamento/calculaViabilidadePorRecurso`
+5. **Catálogo de Receitas:** Ao clicar em **"Receitas Salvas"**, o frontend busca e sincroniza automaticamente com as receitas carregadas no banco de dados H2 da API.
+
+---
+
+## 💡 Destaques e Funcionalidades
+
+- **Simulador de Craft Completo:**
+  - Suporte a Equipamentos (Armas/Armaduras - 1 item por lote), Culinária (10 itens por lote), Alquimia (5 itens por lote) e Refino.
+  - Taxa de Retorno de Recursos (RRR) configurável (0%, 15.2%, 24.8%, 47.9% foco, 53.9% hideout).
+  - Cálculo oficial da taxa da barraca por nutrição: $(\text{Item Value} \times 0.1125 \times \text{Quantidade} / 100) \times \text{Taxa}$.
+  - Impacto de Conta Premium (redução de 6% nas taxas do mercado) e Ordem de Venda (taxa de montagem de 2.5%).
+  - Cálculo de Prata por Ponto de Foco (SPF - Silver Per Focus).
+- **Módulo de Nutrição de Comidas:**
+  - Simulação de venda direta de comida para alimentação de barracas e cálculo de lucro por ponto de nutrição.
+- **Testador de API (JSON):**
+  - Permite testar endpoints e visualizar a resposta JSON direta com status HTTP e tempo de latência.
 
 ---
 
 ## 📄 Licença
+
 Distribuído sob a licença MIT.
